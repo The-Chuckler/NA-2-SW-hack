@@ -1,6 +1,8 @@
 
 SN 68k version 2.53
 
+C:\USERS\VLADA\ONEDRIVE\DESKTOP\SONICLVLEDITOR\CONVERTER\NA-2-SW-HACK\S2.ASM(40569) : Warning : Zero length incbin
+ObjPos_WZ1: incbin 'level/objects/WZ_1.bin'
 
 Assembly completed.
-0 error(s) from 50248 lines in 0.10 seconds
+0 error(s) from 51095 lines in 0.19 seconds

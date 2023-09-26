@@ -2,7 +2,7 @@
 ; Object 0x65 - Metropolis - Platform / Platform Over Gears
 ; [ Begin ]		         
 ;===============================================================================		 
-Obj_0x65_Platform: ; loc_1AA74:
+;Obj_0x65_Platform: ; loc_1AA74:
 		moveq   #$00, D0
 		move.b  $0024(A0), D0
 		move.w  loc_1AA82(PC, D0), D1
@@ -58,7 +58,7 @@ loc_1AB02:
 loc_1AB38:
 		bsr.w     J_SingleObjLoad2_04  ; loc_1AEAA
 		bne.s   loc_1AB98
-		_move.b  0(A0), 0(A1)
+		move.b  0(A0), 0(A1);_move.b  0(A0), 0(A1)
 		addq.b  #$04, $0024(A1)
 		move.w  $0008(A0), $0008(A1)
 		move.w  $000C(A0), $000C(A1)
@@ -311,8 +311,8 @@ loc_1AE26:
 ; ---------------------------------------------------------------------------
 ; Sprite mappings
 ; ---------------------------------------------------------------------------
-Obj65_MapUnc_1AE2C:	BINCLUDE	"mappings/sprite/obj65_a.bin"
-Obj65_MapUnc_1AE68:	BINCLUDE	"mappings/sprite/obj65_b.bin"
+;Obj65_MapUnc_1AE2C:	incbin	"mappings/sprite/obj65_a.bin"
+;Obj65_MapUnc_1AE68:	incbin	"mappings/sprite/obj65_b.bin"
 
 ;=============================================================================== 
 ; Object 0x65 - Metropolis - Platform Over Gears

@@ -2363,7 +2363,7 @@ PalCycle:	dc.w PalCycle_GHZ-PalCycle
 		dc.w PalCycle_EHZ-PalCycle
 		dc.w PalCycle_HPZ-PalCycle
 		dc.w PalCycle_HTZ-PalCycle
-		dc.w PalCycle_WZ-PalCycle;PalCycle_GHZ-PalCycle;ending
+		dc.w PalCycle_GHZ-PalCycle
 ; ===========================================================================
 
 PalCycle_S1TitleScreen:
@@ -2389,23 +2389,7 @@ loc_1E7C:
 locret_1EA2:
 		rts
 ; ===========================================================================
-PalCycle_WZ:
-		subq.w	#1,(PalCycle_Timer).w
-		bpl.s	return_1FB0
-		move.w	#2,(PalCycle_Timer).w
-		lea	(Pal_WzCyc).l,a0
-		move.w	(PalCycle_Frame).w,d0
-		subq.w	#2,(PalCycle_Frame).w
-		bcc.s	loc_1FA4
-		move.w	#6,(PalCycle_Frame).w
 
-loc_1FA4:
-		lea	(Normal_palette_line4+6).w,a1
-		move.l	(a0,d0.w),(a1)+
-		move.l	4(a0,d0.w),(a1)
-
-return_1FB0:		
-		rts
 PalCycle_CPZ:
 		subq.w	#1,($FFFFF634).w
 		bpl.s	locret_1F14
@@ -2506,8 +2490,6 @@ Pal_CPZCyc2:	incbin "art/palettes/CPZ Cycle 2.bin"
 Pal_CPZCyc3:	incbin "art/palettes/CPZ Cycle 3.bin"
 Pal_HPZCyc1:	incbin "art/palettes/HPZ Water Cycle.bin"
 Pal_HPZCyc2:	incbin "art/palettes/HPZ Underwater Cycle.bin"
-Pal_WzCyc: ; loc_2324: ; $02 - Wood Rotating Palette 
-		dc.w    $0248, $046A, $048C, $06CE, $0248, $046A, $048C, $06CE
 Pal_MzCyc1: ; loc_2334: ; $04/$05 - Metropolis Rotating Palette 
 		dc.w    $0006, $0008, $000A, $000C, $000A, $0008		 
 Pal_MzCyc2: ; loc_2340: ; $04/$05 - Metropolis Rotating Palette 
@@ -3132,7 +3114,7 @@ Pal_LZSonicWater:	incbin	"art/palettes/LZ Sonic underwater.bin"
 Pal_LZ4SonicWater:	incbin	"art/palettes/LZ4 Sonic underwater.bin"
 Pal_S1SpeResults:	incbin	"art/palettes/S1 Special Stage results.bin"
 Pal_S1Continue:		incbin	"art/palettes/S1 Continue screen.bin"
-Pal_S1Ending:		incbin	"art/palettes/WZ.bin";S1 Ending.bin"
+Pal_S1Ending:		incbin	"art/palettes/S1 Ending.bin"
 ; ===========================================================================
 		nop
 ; ===========================================================================
@@ -3739,9 +3721,8 @@ LevelSelect_LevelOrder:dc.w	0,    1,    2  ; 0
 		dc.w  $400, $401, $402	; 6
 		dc.w  $100, $101, $102	; 9
 		dc.w  $300, $301, $302	; 12
-		dc.w  $500, $501, $600;$103	; 15
-		dc.w  $601, $700, $701
-		dc.w  $700, $8000,$8000; 18
+		dc.w  $500, $501, $103	; 15
+		dc.w  $502, $700,$8000	; 18
 ; ---------------------------------------------------------------------------
 
 LevelSelect_Level:			; CODE XREF: ROM:0000357Ej
@@ -3852,14 +3833,14 @@ loc_3706:				; CODE XREF: LevelSelect_Controls+8j
 		beq.s	loc_3726
 		subq.w	#1,d0
 		bcc.s	loc_3726
-		moveq	#$16,d0;#$14,d0
+		moveq	#$14,d0
 
 loc_3726:				; CODE XREF: LevelSelect_Controls+28j
 					; LevelSelect_Controls+2Cj
 		btst	#1,d1
 		beq.s	loc_3736
 		addq.w	#1,d0
-		cmpi.w	#$17,d0
+		cmpi.w	#$15,d0
 		bcs.s	loc_3736
 		moveq	#0,d0
 
@@ -3872,7 +3853,7 @@ loc_3736:				; CODE XREF: LevelSelect_Controls+34j
 
 loc_3740:				; CODE XREF: LevelSelect_Controls+Ej
 					; LevelSelect_Controls+1Ej
-		cmpi.w	#$16,($FFFFFF82).w;#$14,($FFFFFF82).w
+		cmpi.w	#$14,($FFFFFF82).w
 		bne.s	locret_377A
 		move.b	($FFFFF605).w,d1
 		andi.b	#$C,d1
@@ -3913,7 +3894,7 @@ LevelSelect_TextLoad:			; CODE XREF: ROM:000034DEp
 		lea	(vdp_data_port).l,a6
 		move.l	#$62100003,d4
 		move.w	#$8680,d3
-		moveq	#$16,d1;#$14,d1
+		moveq	#$14,d1
 
 loc_3794:				; CODE XREF: LevelSelect_TextLoad+26j
 		move.l	d4,4(a6)
@@ -3937,7 +3918,7 @@ loc_3794:				; CODE XREF: LevelSelect_TextLoad+26j
 		move.l	d4,4(a6)
 		bsr.w	sub_381C
 		move.w	#$8680,d3
-		cmpi.w	#$16,($FFFFFF82).w;#$14,($FFFFFF82).w
+		cmpi.w	#$14,($FFFFFF82).w
 		bne.s	loc_37E6
 		move.w	#$C680,d3
 
@@ -4039,7 +4020,7 @@ LevelSelect_Text: ; loc_3D7C: ; Level Select Menu Text
                 dc.b    _H,_I,_D,_D,_E,_N,__,_P,_A,_L,_A,_C,_E,__,__,__,__,_S,_T,_A,_G,_E,__,_1
                 dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
                 dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
-                dc.b    _M,_E,_T,_R,_O,_P,_O,_L,_I,_S,__,_Z,_O,_N,_E,__,__,_S,_T,_A,_G,_E,__,_1
+                dc.b    _L,_A,_B,_I,_R,_Y,_N,_T,_H,__,_Z,_O,_N,_E,__,__,__,_S,_T,_A,_G,_E,__,_1
                 dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
                 dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
                 dc.b    _E,_M,_E,_R,_A,_L,_D,__,_H,_I,_L,_L,__,_Z,_O,_N,_E,_S,_T,_A,_G,_E,__,_1
@@ -4047,10 +4028,8 @@ LevelSelect_Text: ; loc_3D7C: ; Level Select Menu Text
                 dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
                 dc.b    _H,_I,_L,_L,__,_T,_O,_P,__,_Z,_O,_N,_E,__,__,__,__,_S,_T,_A,_G,_E,__,_1
                 dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
-                dc.b    _W,_O,_O,_D,__,_Z,_O,_N,_E,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1
-				dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
-				dc.b    _D,_U,_S,_T,__,_H,_I,_L,_L,__,_Z,_O,_N,_E,__,__,__,_S,_T,_A,_G,_E,__,_1
-				dc.b	__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2;_F,_I,_N,_A,_L,__,_Z,_O,_N,_E,__,__,__,__,__,__,__,__,__,__,__,__,__,__
+                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
+				dc.b	_F,_I,_N,_A,_L,__,_Z,_O,_N,_E,__,__,__,__,__,__,__,__,__,__,__,__,__,__
 				dc.b    _S,_P,_E,_C,_I,_A,_L,__,_S,_T,_A,_G,_E,__,__,__,__,__,__,__,__,__,__,__
 				dc.b    _S,_O,_U,_N,_D,__,_S,_E,_L,_E,_C,_T,__,__,__,__,__,__,__,__,__,__,__,__
 ;
@@ -5235,7 +5214,7 @@ ColP_Index:	dc.l ColP_GHZ		; 0
 		dc.l ColP_EHZ		; 3
 		dc.l ColP_HPZ		; 4
 		dc.l ColP_EHZ		; 5
-		dc.l ColP_WZ
+
 ; ---------------------------------------------------------------------------
 ; Pointers to secondary collision indexes
 
@@ -5249,7 +5228,7 @@ ColS_Index:	dc.l ColS_GHZ		; 0
 		dc.l ColS_EHZ		; 3
 		dc.l ColS_HPZ		; 4
 		dc.l ColS_EHZ		; 5
-		dc.l ColS_WZ
+
 ; =============== S U B	R O U T	I N E =======================================
 
 
@@ -6114,7 +6093,7 @@ LevelSizeArray:
 		dc.w	 0,  $3FFF, -$100,	$720		; HTZ2
 		dc.w $2080,  $3FFF,  $510,	$720		; HTZ3
 		dc.w	 0,  $3FFF,     0,	$720		; HTZ4
-		dc.w	 0,  $3FFF,		0,	$720;dc.w	 0,  $500,   $110,	$110		; S1 Ending 1
+		dc.w	 0,  $500,   $110,	$110		; S1 Ending 1
 		dc.w	 0,  $DC0,   $110,	$110		; S1 Ending 2
 		dc.w	 0,  $2FFF,     0,	$320		; S1 Ending 3
 		dc.w	 0,  $2FFF,     0,	$320		; S1 Ending 4
@@ -6208,7 +6187,7 @@ StartLocArray:	dc.w   $50, $3B0		; GHZ1
 		incbin	"startpos/HTZ_2.bin"	; HTZ2
 		dc.w $2140, $5AC		; HTZ3
 		dc.w   $80,  $A8		; HTZ4
-		incbin	"startpos/WZ_1.bin";dc.w  $620, $16B		; S1 Ending 1
+		dc.w  $620, $16B		; S1 Ending 1
 		dc.w  $EE0, $16C		; S1 Ending 2
 		dc.w   $80,  $A8		; S1 Ending 3
 		dc.w   $80,  $A8		; S1 Ending 4
@@ -6399,7 +6378,7 @@ Deform_Index:	dc.w Deform_GHZ-Deform_Index; 0	; DATA XREF: ROM:Deform_Indexo
 		dc.w Deform_EHZ-Deform_Index; 3
 		dc.w Deform_HPZ-Deform_Index; 4
 		dc.w Deform_HTZ-Deform_Index; 5
-		dc.w Deform_Unk-Deform_Index;Deform_GHZ-Deform_Index; 6
+		dc.w Deform_GHZ-Deform_Index; 6
 ; ---------------------------------------------------------------------------
 
 Deform_GHZ:				; DATA XREF: ROM:Deform_Indexo
@@ -7341,26 +7320,7 @@ loc_64D6:				; CODE XREF: ROM:000064D8j
 		swap	d3
 		dbf	d2,loc_64D0
 		rts
-Bg_Scroll_Wz: ; loc_6098: ; Wood Background Scroll
-		move.w  (Camera_X_pos_diff).w, D4
-		ext.l   D4
-		asl.l   #$05, D4
-		move.w  (Camera_Y_pos_diff).w, D5
-		ext.l   D5
-		asl.l   #$06, D5
-		bsr.w     ScrollBlock1           ; loc_6CB4
-		move.w  (Camera_BG_Y_pos).w, (Vscroll_Factor_BG).w
-;		lea     (Horiz_Scroll_Buf).w, A1
-		move.w  #$00DF, D1
-;		move.w  (Camera_X_pos).w, D0
-		neg.w   D0
-		swap  D0
-		move.w  (Camera_BG_X_pos).w, D0
-		neg.w   D0
-loc_60C8:
-		move.l  D0, (A1)+
-		dbf    D1, loc_60C8
-		rts         
+
 ; =============== S U B	R O U T	I N E =======================================
 
 
@@ -9117,8 +9077,6 @@ loc_72F4:				; CODE XREF: MainLevelLoadBlock+58j
 		cmpi.b	#4,(Current_Zone).w
 		beq.s	loc_7338
 		cmpi.b	#5,(Current_Zone).w
-		beq.s	loc_7338
-		cmpi.b	#6,(Current_Zone).w
 		beq.s	loc_7338
 		move.l	a2,-(sp)
 		moveq	#0,d1
@@ -38242,11 +38200,7 @@ levartptrs macro plc1,plc2,palette,art,map16x16,map128x128,music
 	dc.l map128x128
 	dc.b 0,music,palette,palette
 	endm
-;FOR IDIOTS THAT DONT UNDERSTAND:
-;first number is the first PLC
-;second number is second PLC
-;third number is palette
-;then tiles, blocks, chunks, and music
+
 ; MainLoadBlocks:
 LevelArtPointers:
 		levartptrs  4,  5,  4, Nem_GHZ, Map16_GHZ, UnkComp_Map128_GHZ, bgm_GHZ	;   0 ; GHZ  ; GREEN HILL ZONE
@@ -38255,7 +38209,7 @@ LevelArtPointers:
 		levartptrs $A, $B,  7, Nem_EHZ, Map16_EHZ, Map128_EHZ, bgm_SLZ		;   3 ; EHZ  ; EMERALD HILL ZONE
 		levartptrs $C, $D,  8, Nem_HPZ, Map16_HPZ, Map128_HPZ, bgm_SYZ		;   4 ; HPZ  ; HIDDEN PALACE ZONE
 		levartptrs $E, $F,  9, Nem_EHZ, Map16_EHZ, Map128_EHZ, bgm_SBZ		;   5 ; HTZ  ; HILL TOP ZONE
-		levartptrs $1A,$1B,$13, Nem_WZ,  Map16_WZ,  Map128_WZ,  bgm_SBZ;0,  0,$13, Nem_WZ,  Map16_WZ,  Map128_WZ,  bgm_SBZ	;   6 ; LEV6 ; LEVEL 6 (UNUSED, SONIC 1 ENDING)
+		levartptrs  0,  0,$13, Nem_GHZ, Map16_GHZ, UnkComp_Map128_GHZ, bgm_SBZ	;   6 ; LEV6 ; LEVEL 6 (UNUSED, SONIC 1 ENDING)
 
 ; ---------------------------------------------------------------------------
 ; PATTERN LOAD REQUEST LISTS
@@ -38290,13 +38244,13 @@ ArtLoadCues:	dc.w PLC_Main-ArtLoadCues,PLC_Main2-ArtLoadCues
 		dc.w PLC_HPZ-ArtLoadCues,PLC_HPZ2-ArtLoadCues
 		dc.w PLC_HTZ-ArtLoadCues,PLC_HTZ2-ArtLoadCues
 		dc.w PLC_S1TitleCard-ArtLoadCues,PLC_Boss-ArtLoadCues
-		dc.w PLC_Signpost-ArtLoadCues,PLC_S1SpecialStage-ArtLoadCues;10 and 11 seems like
-		dc.w PLC_S1SpecialStage-ArtLoadCues,PLC_GHZAnimals-ArtLoadCues;12,13
-		dc.w PLC_LZAnimals-ArtLoadCues,PLC_CPZAnimals-ArtLoadCues;14,15
-		dc.w PLC_EHZAnimals-ArtLoadCues,PLC_HPZAnimals-ArtLoadCues;16,17
-		dc.w PLC_HTZAnimals-ArtLoadCues,PLC_WZ-ArtLoadCues;PLC_HTZAnimals-ArtLoadCues;LeftoverArt_Unknown-ArtLoadCues;18,19
-		dc.w PLC_MTZ-ArtLoadCues,PLC_MTZ2-ArtLoadCues;LeftoverArt_Unknown+2-ArtLoadCues,LeftoverArt_Unknown+4-ArtLoadCues;1A,1B
-		dc.w PLC_MTZ-ArtLoadCues,PLC_MTZ2-ArtLoadCues;LeftoverArt_Unknown+6-ArtLoadCues,LeftoverArt_Unknown+8-ArtLoadCues
+		dc.w PLC_Signpost-ArtLoadCues,PLC_S1SpecialStage-ArtLoadCues
+		dc.w PLC_S1SpecialStage-ArtLoadCues,PLC_GHZAnimals-ArtLoadCues
+		dc.w PLC_LZAnimals-ArtLoadCues,PLC_CPZAnimals-ArtLoadCues
+		dc.w PLC_EHZAnimals-ArtLoadCues,PLC_HPZAnimals-ArtLoadCues
+		dc.w PLC_HTZAnimals-ArtLoadCues,PLC_HTZAnimals-ArtLoadCues;LeftoverArt_Unknown-ArtLoadCues
+		dc.w LeftoverArt_Unknown+2-ArtLoadCues,LeftoverArt_Unknown+4-ArtLoadCues
+		dc.w LeftoverArt_Unknown+6-ArtLoadCues,LeftoverArt_Unknown+8-ArtLoadCues
 
 ; macro for a pattern load request
 plreq macro toVRAMaddr,fromROMaddr
@@ -38379,9 +38333,6 @@ PLC_MTZ:	dc.w ((PLC_MTZ_End-PLC_MTZ-$02)/6)-1
 		dc.l    ArtNem_MtzSpike              ; loc_74CF4
 		dc.w    $8380
 PLC_MTZ_End:
-PLC_WZ:		dc.w ((PLC_WZ_End-PLC_WZ-$02)/6)-1
-		plreq 0, Nem_WZ
-PLC_WZ_End:
 PLC_MTZ2:	dc.w ((PLC_MTZ2_End-PLC_MTZ2-$02)/6)-1
 		dc.l    ArtNem_Button		  ; loc_78580
 		dc.w    $8480     
@@ -39954,7 +39905,7 @@ Level_Index:	dc.w Level_GHZ1-Level_Index,Level_GHZBg-Level_Index,Level_Null-Leve
 		dc.w Level_HTZ1-Level_Index,Level_HTZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_HTZ2-Level_Index,Level_HTZBg-Level_Index,Level_Null-Level_Index
 
-		dc.w Level_WZ1-Level_Index,Level_WZBG-Level_Index,Level_Null-Level_Index;Ending, now wood zone
+		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
@@ -40036,8 +39987,6 @@ Level_CPZBg:	incbin	"level/layout/CPZ_BG.bin"
 		even
 Level_HPZBg:	incbin	"level/layout/HPZ_BG.bin"
 		even
-Level_WZ1:	incbin	"level/layout/WZ_1.bin"
-Level_WZBG:	incbin	"level/layout/WZ_BG.bin"
 Level_MTZBg:
 		incbin	"level/layout/MTZ_BG.bin"
 Level_MTZ1:
@@ -40538,20 +40487,20 @@ ObjPos_Index:	dc.w ObjPos_GHZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_HTZ3-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_HTZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index
 
-		dc.w ObjPos_WZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
 
 		; platform objects in LZ/SBZ (unused)
-;		dc.w ObjPos_S1LZ1pf1-ObjPos_Index,ObjPos_S1LZ1pf2-ObjPos_Index
-;		dc.w ObjPos_S1LZ2pf1-ObjPos_Index,ObjPos_S1LZ2pf2-ObjPos_Index
-;		dc.w ObjPos_S1LZ3pf1-ObjPos_Index,ObjPos_S1LZ3pf2-ObjPos_Index
-;		dc.w ObjPos_S1LZ1pf1-ObjPos_Index,ObjPos_S1LZ1pf2-ObjPos_Index
-;		dc.w ObjPos_S1SBZ1pf1-ObjPos_Index,ObjPos_S1SBZ1pf2-ObjPos_Index
-;		dc.w ObjPos_S1SBZ1pf3-ObjPos_Index,ObjPos_S1SBZ1pf4-ObjPos_Index
-;		dc.w ObjPos_S1SBZ1pf5-ObjPos_Index,ObjPos_S1SBZ1pf6-ObjPos_Index
-;		dc.w ObjPos_S1SBZ1pf1-ObjPos_Index,ObjPos_S1SBZ1pf2-ObjPos_Index
+		dc.w ObjPos_S1LZ1pf1-ObjPos_Index,ObjPos_S1LZ1pf2-ObjPos_Index
+		dc.w ObjPos_S1LZ2pf1-ObjPos_Index,ObjPos_S1LZ2pf2-ObjPos_Index
+		dc.w ObjPos_S1LZ3pf1-ObjPos_Index,ObjPos_S1LZ3pf2-ObjPos_Index
+		dc.w ObjPos_S1LZ1pf1-ObjPos_Index,ObjPos_S1LZ1pf2-ObjPos_Index
+		dc.w ObjPos_S1SBZ1pf1-ObjPos_Index,ObjPos_S1SBZ1pf2-ObjPos_Index
+		dc.w ObjPos_S1SBZ1pf3-ObjPos_Index,ObjPos_S1SBZ1pf4-ObjPos_Index
+		dc.w ObjPos_S1SBZ1pf5-ObjPos_Index,ObjPos_S1SBZ1pf6-ObjPos_Index
+		dc.w ObjPos_S1SBZ1pf1-ObjPos_Index,ObjPos_S1SBZ1pf2-ObjPos_Index
 
 		dc.w $FFFF,    0,    0
 ObjPos_GHZ1:	incbin	"level/objects/GHZ_1.bin"
@@ -40566,8 +40515,66 @@ ObjPos_LZ2:		incbin	"level/objects/MTZ_2.bin"
 		dc.w $FFFF,    0,    0
 ObjPos_LZ3:		incbin	"level/objects/MTZ_3.bin"
 		dc.w $FFFF,    0,    0
-ObjPos_WZ1:		incbin	"level/objects/WZ_1.bin"
-		dc.w $FFFF,    0,    0
+ObjPos_S1LZ1pf1:dc.w	 7,$1078, $21A	; 0 ; DATA XREF: ROM:ObjPos_Indexo
+		dc.w	 0,$10BE, $291	; 3
+		dc.w	 2,$10BE, $307	; 6
+		dc.w	 2,$10BE, $37E	; 9
+		dc.w	 2,$105C, $390	; 12
+		dc.w	 4,$1022, $352	; 15
+		dc.w	 5,$1022, $2DB	; 18
+		dc.w	 5,$1022, $265	; 21
+		dc.w	 5		; 24
+ObjPos_S1LZ1pf2:dc.w	 7,$127E, $280	; 0 ; DATA XREF: ROM:ObjPos_Indexo
+		dc.w   $10,$12CE, $305	; 3
+		dc.w   $12,$12CE, $38A	; 6
+		dc.w   $12,$12CE, $40F	; 9
+		dc.w   $12,$12A7, $46E	; 12
+		dc.w   $13,$1232, $40F	; 15
+		dc.w   $14,$1232, $38A	; 18
+		dc.w   $14,$1232, $305	; 21
+		dc.w   $14		; 24
+ObjPos_S1LZ2pf1:dc.w	 7, $D22, $483	; 0 ; DATA XREF: ROM:ObjPos_Indexo
+		dc.w   $21, $D9C, $482	; 3
+		dc.w   $20, $DAE, $4EA	; 6
+		dc.w   $23, $DAE, $564	; 9
+		dc.w   $23, $DAE, $5DD	; 12
+		dc.w   $23, $D34, $5DE	; 15
+		dc.w   $22, $D22, $576	; 18
+		dc.w   $21, $D22, $4FC	; 21
+		dc.w   $21		; 24
+ObjPos_S1LZ2pf2:dc.w	 7, $D62, $3A2	; 0 ; DATA XREF: ROM:ObjPos_Indexo
+		dc.w   $30, $DD4, $3A2	; 3
+		dc.w   $31, $DEE, $3FA	; 6
+		dc.w   $32, $DEE, $46C	; 9
+		dc.w   $32, $DEE, $4DD	; 12
+		dc.w   $32, $D7C, $4DE	; 15
+		dc.w   $33, $D62, $486	; 18
+		dc.w   $30, $D62, $414	; 21
+		dc.w   $30		; 24
+ObjPos_S1LZ3pf1:dc.w	$B, $CAD, $242	; 0 ; DATA XREF: ROM:ObjPos_Indexo
+		dc.w   $41, $D2D, $242	; 3
+		dc.w   $41, $DAC, $242	; 6
+		dc.w   $41, $DDE, $28F	; 9
+		dc.w   $42, $DDE, $30E	; 12
+		dc.w   $42, $DDE, $38D	; 15
+		dc.w   $42, $DB0, $3DE	; 18
+		dc.w   $43, $D31, $3DE	; 21
+		dc.w   $43, $CB2, $3DE	; 24
+		dc.w   $43, $C52, $3BF	; 27
+		dc.w   $44, $C52, $340	; 30
+		dc.w   $44, $C52, $2C1	; 33
+		dc.w   $44		; 36
+ObjPos_S1LZ3pf2:dc.w	 8,$1252, $20A	; 0 ; DATA XREF: ROM:ObjPos_Indexo
+		dc.w   $50,$12D2, $20A	; 3
+		dc.w   $51,$1352, $20A	; 6
+		dc.w   $51,$13D2, $20A	; 9
+		dc.w   $51,$13DE, $27E	; 12
+		dc.w   $52,$139E, $2BE	; 15
+		dc.w   $53,$131E, $2BE	; 18
+		dc.w   $53,$129E, $2BE	; 21
+		dc.w   $53,$1252, $28A	; 24
+		dc.w   $50,$FFFF,    0	; 27
+		dc.w	 0		; 30
 ObjPos_CPZ1:	incbin	"level/objects/CPZ_1.bin"
 		dc.w $FFFF,    0,    0
 ObjPos_CPZ2:	incbin	"level/objects/CPZ_2.bin"
@@ -42711,14 +42718,5 @@ Obj_0x6C_Mz_Moving_Platforms:
 		include		"SWobjects/6C MTZ vertical platforms.asm"
 Obj_0x70_Rotating_Gears:
 		include		"SWobjects/70 MTZ rotating cogs.asm"
-Nem_WZ:
-		incbin	"art/nemesis/WZ primary.bin"
-Map16_WZ:
-		incbin	"mappings/16x16/WZ.bin"
-Map128_WZ:
-		incbin	"mappings/128x128/WZ.bin"
-ColP_WZ:
-ColS_WZ:
-		incbin	"collision/WZ 16x16 collision index.bin"
 ; end of 'ROM'
 		END

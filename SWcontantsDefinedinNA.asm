@@ -17,3 +17,8 @@ PalCycle_Frame3:	equ	$FFFFF654
 Normal_palette_line3:	equ	$FFFFFB40;5E
 PalCycle_Timer3:	equ	$FFFFF668
 PalCycle_Timer2:	equ	$FFFFF666
+MTZ_Platform_Cog_X:	equ	$FFFFF7B0;AF
+Object_Respawn_Table:	equ $FFFFFC00
+Normal_palette_line4:	equ	$FFFFFB60;72
+Camera_X_pos_diff:		equ	$FFFFEEB0
+Camera_Y_pos_diff:		equ	$FFFFEEB2
