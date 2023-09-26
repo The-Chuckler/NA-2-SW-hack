@@ -1,0 +1,19 @@
+;Astea pot fi DOAR numere pare(cred) sau daca nu va da eroare de adresa; nu conteaza in ce ordine sunt definite, doar sa fie definite
+Camera_BG_Y_pos:	equ	$FFFFEE0C
+Last_star_pole_hit:	equ	$FFFFFE30
+Camera_BG2_Y_pos:	equ	$FFFFEE08;$FFFFEE14
+Camera_BG_X_pos:	equ	$FFFFEE14;$FFFFEE08
+Camera_BG2_X_pos:	equ	$FFFFEE18;$FFFFEE10
+Camera_BG3_X_pos:	equ	$FFFFEE10;$FFFFEE18
+Vscroll_Factor_BG:	equ	$FFFFF618
+Scroll_flags_BG2:	equ	$FFFFEE54
+Scroll_flags_BG3:	equ	$FFFFEE52
+Scroll_flags_BG:	equ	$FFFFEE52
+TempArray_LayerDef:	equ	$FFFFA800
+PalCycle_Timer:		equ	$FFFFF634
+PalCycle_Frame:		equ	$FFFFF632
+PalCycle_Frame2:	equ	$FFFFF652
+PalCycle_Frame3:	equ	$FFFFF654
+Normal_palette_line3:	equ	$FFFFFB40;5E
+PalCycle_Timer3:	equ	$FFFFF668
+PalCycle_Timer2:	equ	$FFFFF666

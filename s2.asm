@@ -2358,7 +2358,7 @@ PalCycle_Load:
 
 ; ===========================================================================
 PalCycle:	dc.w PalCycle_GHZ-PalCycle
-		dc.w PalCycle_CPZ-PalCycle
+		dc.w PalCycle_MTZ-PalCycle
 		dc.w PalCycle_CPZ-PalCycle
 		dc.w PalCycle_EHZ-PalCycle
 		dc.w PalCycle_HPZ-PalCycle
@@ -2462,7 +2462,8 @@ PalCycle_EHZ:
 locret_1F84:
 		rts
 ; ===========================================================================
-
+PalCycle_MTZ:
+		include	"MTZpalCyc.asm"
 PalCycle_HTZ:
 		lea	(Pal_HTZCyc1).l,a0
 		subq.w	#1,($FFFFF634).w
@@ -2489,7 +2490,13 @@ Pal_CPZCyc2:	incbin "art/palettes/CPZ Cycle 2.bin"
 Pal_CPZCyc3:	incbin "art/palettes/CPZ Cycle 3.bin"
 Pal_HPZCyc1:	incbin "art/palettes/HPZ Water Cycle.bin"
 Pal_HPZCyc2:	incbin "art/palettes/HPZ Underwater Cycle.bin"
-
+Pal_MzCyc1: ; loc_2334: ; $04/$05 - Metropolis Rotating Palette 
+		dc.w    $0006, $0008, $000A, $000C, $000A, $0008		 
+Pal_MzCyc2: ; loc_2340: ; $04/$05 - Metropolis Rotating Palette 
+		dc.w    $0422, $0866, $0ECC, $0422, $0866, $0ECC 
+Pal_MzCyc3: ;loc_234C: ; $04/$05 - Metropolis Rotating Palette 
+		dc.w    $00A0, $0000, $00EE, $0000, $002E, $0000, $0E2E, $0000
+		dc.w    $0E80, $0000
 ; ===========================================================================
 ; ---------------------------------------------------------------------------
 ; Subroutine to fade in from black
@@ -3071,7 +3078,7 @@ PalPointers:	palptr	Pal_SegaBG,$FB00,$1F
 		palptr	Pal_LevelSelect,$FB00,$1F
 		palptr	Pal_SonicTails,$FB00,7
 		palptr	Pal_GHZ,$FB20,$17
-		palptr	Pal_CPZ,$FB20,$17
+		palptr	Pal_MTZ,$FB20,$17
 		palptr	Pal_CPZ,$FB20,$17
 		palptr	Pal_EHZ,$FB20,$17
 		palptr	Pal_HPZ,$FB20,$17
@@ -3094,6 +3101,7 @@ Pal_LevelSelect:	incbin	"art/palettes/Level select.bin"
 Pal_SonicTails:		incbin	"art/palettes/Sonic and Tails.bin"
 Pal_GHZ:		incbin	"art/palettes/GHZ.bin"
 Pal_HPZWater:		incbin	"art/palettes/HPZ underwater.bin"
+Pal_MTZ:		incbin	"art/palettes/MTZ.bin"
 Pal_CPZ:		incbin	"art/palettes/CPZ.bin"
 Pal_EHZ:		incbin	"art/palettes/EHZ.bin"
 Pal_HPZ:		incbin	"art/palettes/HPZ.bin"
@@ -3471,7 +3479,7 @@ loc_3270:				; CODE XREF: ROM:00003272j
 		bsr.w	Pal_FadeFromBlack
 		move	#$2700,sr
 		move.l	#$40000000,(vdp_control_port).l
-		lea	(Nem_Title).l,a0
+		lea	(Nem_TitleOnCrack).l,a0
 		bsr.w	NemDec
 		move.l	#$40000001,(vdp_control_port).l
 		lea	(Nem_TitleSonicTails).l,a0
@@ -3494,7 +3502,7 @@ loc_32C4:				; CODE XREF: ROM:000032C6j
 		bsr.w	Pal_FadeToBlack
 		move	#$2700,sr
 		lea	($FFFF0000).l,a1
-		lea	(Eni_TitleMap).l,a0
+		lea	(Eni_TitleMapOnCrack).l,a0
 		move.w	#0,d0
 		bsr.w	EniDec
 		lea	($FFFF0000).l,a1
@@ -3968,7 +3976,65 @@ loc_382E:				; CODE XREF: sub_381C+6j
 ; End of function sub_381C
 
 ; ---------------------------------------------------------------------------
-LevelSelect_Text:	incbin	"mappings/misc/Level select text.bin"
+;LevelSelect_Text:
+; ===========================================================================
+
+_0 = $00
+_1 = $01
+_2 = $02		
+_3 = $03
+_A = $11
+_B = $12
+_C = $13
+_D = $14		
+_E = $15
+_F = $16
+_G = $17
+_H = $18
+_I = $19
+_J = $1A
+_K = $1B
+_L = $1C
+_M = $1D
+_N = $1E
+_O = $1F
+_P = $20
+_Q = $21
+_R = $22
+_S = $23
+_T = $24
+_U = $25
+_V = $26
+_W = $27
+_X = $28
+_Y = $0F
+_Z = $10
+__ = $FF		
+LevelSelect_Text: ; loc_3D7C: ; Level Select Menu Text		 
+                dc.b    _G,_R,_E,_E,_N,__,_H,_I,_L,_L,__,_Z,_O,_N,_E,__,__,_S,_T,_A,_G,_E,__,_1
+                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
+                dc.b    _C,_H,_E,_M,_I,_C,_A,_L,__,_P,_L,_A,_N,_T,__,__,__,_S,_T,_A,_G,_E,__,_1
+                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
+                dc.b    _H,_I,_D,_D,_E,_N,__,_P,_A,_L,_A,_C,_E,__,__,__,__,_S,_T,_A,_G,_E,__,_1
+                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
+                dc.b    _L,_A,_B,_I,_R,_Y,_N,_T,_H,__,_Z,_O,_N,_E,__,__,__,_S,_T,_A,_G,_E,__,_1
+                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
+                dc.b    _E,_M,_E,_R,_A,_L,_D,__,_H,_I,_L,_L,__,_Z,_O,_N,_E,_S,_T,_A,_G,_E,__,_1
+                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
+                dc.b    _H,_I,_L,_L,__,_T,_O,_P,__,_Z,_O,_N,_E,__,__,__,__,_S,_T,_A,_G,_E,__,_1
+                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
+				dc.b	_F,_I,_N,_A,_L,__,_Z,_O,_N,_E,__,__,__,__,__,__,__,__,__,__,__,__,__,__
+				dc.b    _S,_P,_E,_C,_I,_A,_L,__,_S,_T,_A,_G,_E,__,__,__,__,__,__,__,__,__,__,__
+				dc.b    _S,_O,_U,_N,_D,__,_S,_E,_L,_E,_C,_T,__,__,__,__,__,__,__,__,__,__,__,__
+;
+;		dc.b    $00 ; Filler
+; ===========================================================================;	incbin	"mappings/misc/Level select text.bin"
 		even
 ; ---------------------------------------------------------------------------
 
@@ -4288,9 +4354,9 @@ loc_3D2A:
 
 loc_3D6C:
 		tst.w	(Two_player_mode).w
-		bne.s	LevelInit_LoadTails
-		cmpi.b	#3,(Current_Zone).w
-		beq.s	LevelInit_SkipTails ; funny how	they skipped Tails in EHZ for the Nick Arcade show
+;		bne.s	LevelInit_LoadTails
+;		cmpi.b	#3,(Current_Zone).w
+;		beq.s	LevelInit_SkipTails ; funny how	they skipped Tails in EHZ for the Nick Arcade show
 
 LevelInit_LoadTails:
 		move.b	#2,($FFFFB040).w
@@ -5143,7 +5209,7 @@ loc_4616:
 ; level. 1 pointer for each level, pointing the primary collision index.
 ; ---------------------------------------------------------------------------
 ColP_Index:	dc.l ColP_GHZ		; 0
-		dc.l ColP_CPZ		; 1
+		dc.l ColP_MTZ		; 1
 		dc.l ColP_CPZ		; 2
 		dc.l ColP_EHZ		; 3
 		dc.l ColP_HPZ		; 4
@@ -5157,7 +5223,7 @@ ColP_Index:	dc.l ColP_GHZ		; 0
 ; index.
 ; ---------------------------------------------------------------------------
 ColS_Index:	dc.l ColS_GHZ		; 0
-		dc.l ColS_CPZ		; 1
+		dc.l ColS_MTZ		; 1
 		dc.l ColS_CPZ		; 2
 		dc.l ColS_EHZ		; 3
 		dc.l ColS_HPZ		; 4
@@ -6007,12 +6073,12 @@ LevelSizeArray:
 		dc.w	 0,  $1EBF,     0,	$300		; GHZ2
 		dc.w	 0,  $2960,     0,	$300		; GHZ3
 		dc.w	 0,  $2ABF,     0,	$300		; GHZ4
-		dc.w	 0,  $3FFF,     0,	$720		; LZ1
-		dc.w	 0,  $3FFF,     0,	$720		; LZ2
-		dc.w	 0,  $3FFF,     0,	$720		; LZ3
+		dc.w	 0,  $3FFF, -$100,	$720		; LZ1
+		dc.w	 0,  $3FFF, -$100,	$720		; LZ2
+		dc.w	 0,  $3FFF, -$100,	$720		; LZ3
 		dc.w	 0,  $3FFF,     0,	$720		; LZ4
-		dc.w	 0,  $3FFF,     0,	$720		; CPZ1
-		dc.w	 0,  $3FFF,     0,	$720		; CPZ2
+		dc.w	 0,  $2780,		0,	$720;$3FFF,     0,	$720		; CPZ1
+		dc.w	 0,  $2880,		0,	$720;$3FFF,     0,	$720		; CPZ2
 		dc.w	 0,  $3FFF,     0,	$720		; CPZ3
 		dc.w	 0,  $3FFF,     0,	$720		; CPZ4
 		dc.w	 0,  $29A0,     0,	$320		; EHZ1
@@ -6101,12 +6167,12 @@ StartLocArray:	dc.w   $50, $3B0		; GHZ1
 		dc.w   $50,  $FC		; GHZ2
 		dc.w   $50, $3B0		; GHZ3
 		dc.w   $80,  $A8		; GHZ4
-		dc.w   $60,  $6C		; LZ1
-		dc.w   $50,  $EC		; LZ2
-		dc.w   $50, $2EC		; LZ3
+		incbin	"startpos/MTZ_1.bin";dc.w   $60,  $6C		; LZ1
+		incbin	"startpos/MTZ_2.bin";dc.w   $50,  $EC		; LZ2
+		incbin	"startpos/MTZ_3.bin";dc.w   $50, $2EC		; LZ3
 		dc.w   $B80,   0		; LZ4
 		incbin	"startpos/CPZ_1.bin"	; CPZ1
-		dc.w   $30, $266		; CPZ2
+		incbin	"startpos/CPZ_2.bin";dc.w   $30, $266		; CPZ2
 		dc.w   $30, $166		; CPZ3
 		dc.w   $80,  $A8		; CPZ4
 		incbin	"startpos/EHZ_1.bin"	; EHZ1
@@ -6307,7 +6373,7 @@ loc_5B2A:				; CODE XREF: DeformBGLayer+5Cj
 ; ---------------------------------------------------------------------------
 Deform_Index:	dc.w Deform_GHZ-Deform_Index; 0	; DATA XREF: ROM:Deform_Indexo
 					; ROM:Deform_Index+2o ...
-		dc.w Deform_LZ-Deform_Index; 1
+		dc.w Deform_CPZ-Deform_Index;LZ-Deform_Index; 1
 		dc.w Deform_CPZ-Deform_Index; 2
 		dc.w Deform_EHZ-Deform_Index; 3
 		dc.w Deform_HPZ-Deform_Index; 4
@@ -6705,22 +6771,17 @@ Deform_LZ_Data1:dc.b   1,  1,  2,  2,  3,  3,  3,  3,  2,  2,  1,  1,  0,  0,  0
 ; ---------------------------------------------------------------------------
 
 Deform_CPZ:				; DATA XREF: ROM:Deform_Indexo
-		move.w	($FFFFEEB0).w,d4
-		ext.l	d4
-		asl.l	#5,d4
-		move.w	($FFFFEEB2).w,d5
-		ext.l	d5
-		asl.l	#6,d5
-		bsr.w	ScrollBlock1
-		move.w	($FFFFEE0C).w,($FFFFF618).w
-		lea	($FFFFE000).w,a1
-		move.w	#$DF,d1	; 'ß'
-		move.w	($FFFFEE00).w,d0
-		neg.w	d0
-		swap	d0
-		move.w	($FFFFEE08).w,d0
-		neg.w	d0
-
+		include		"CPZbgScroll.asm"
+;		move.w	($FFFFEE0C).w,($FFFFF618).w
+;		lea	($FFFFE000).w,a1
+;		move.w	#$DF,d1	; 'ß'
+;		move.w	($FFFFEE00).w,d0
+;		neg.w	d0
+;		swap	d0
+;		move.w	($FFFFEE08).w,d0
+;		neg.w	d0
+;Camera_X_pos_diff:	equ	$FFFFEEB0
+;Camera_Y_pos_diff:	equ	$FFFFEEB2
 loc_6026:				; CODE XREF: ROM:00006028j
 		move.l	d0,(a1)+
 		dbf	d1,loc_6026
@@ -9007,6 +9068,8 @@ loc_72EE:				; CODE XREF: MainLevelLoadBlock+6Ej
 
 loc_72F4:				; CODE XREF: MainLevelLoadBlock+58j
 		movea.l	(a2)+,a0
+		cmpi.b	#1,(Current_Zone).w
+		beq.s	loc_7338
 		cmpi.b	#2,(Current_Zone).w
 		beq.s	loc_7338
 		cmpi.b	#3,(Current_Zone).w
@@ -14928,7 +14991,7 @@ loc_B98E:				; CODE XREF: ROM:0000B984j
 		bmi.s	Obj34_NoDisplay
 		cmpi.w	#$200,d0
 		bcc.s	Obj34_NoDisplay
-		rts
+;		rts
 ; ---------------------------------------------------------------------------
 		bra.w	DisplaySprite
 ; ---------------------------------------------------------------------------
@@ -14942,7 +15005,7 @@ Obj34_Wait:				; DATA XREF: ROM:Obj34_Indexo
 		tst.w	$1E(a0)
 		beq.s	Obj34_CheckPos2
 		subq.w	#1,$1E(a0)
-		rts
+;		rts
 ; ---------------------------------------------------------------------------
 		bra.w	DisplaySprite
 ; ---------------------------------------------------------------------------
@@ -14963,7 +15026,7 @@ Obj34_Move2:				; CODE XREF: ROM:0000B9C4j
 		bmi.s	Obj34_NoDisplay2
 		cmpi.w	#$200,d0
 		bcc.s	Obj34_NoDisplay2
-		rts
+;		rts
 ; ---------------------------------------------------------------------------
 		bra.w	DisplaySprite
 ; ---------------------------------------------------------------------------
@@ -15154,7 +15217,7 @@ loc_BBCC:
 		bmi.s	locret_BBDE
 		cmpi.w	#$200,d0
 		bcc.s	locret_BBDE
-		rts
+;		rts
 ; ---------------------------------------------------------------------------
 		bra.w	DisplaySprite
 ; ===========================================================================
@@ -15182,7 +15245,7 @@ Obj3A_Wait:
 		addq.b	#2,routine(a0)
 
 locret_BC0E:
-		rts
+;		rts
 ; ---------------------------------------------------------------------------
 		bra.w	DisplaySprite
 ; ===========================================================================
@@ -15255,7 +15318,7 @@ loc_BCBC:
 		move.w	#1,($FFFFFE02).w
 
 locret_BCC2:
-		rts
+;		rts
 ; ---------------------------------------------------------------------------
 		bra.w	DisplaySprite
 ; ===========================================================================
@@ -16148,6 +16211,7 @@ loc_C988:				; DATA XREF: ROM:0000C8DAo
 
 
 sub_C99E:				; CODE XREF: ROM:0000C986p
+BreakObjectToPieces:
 		moveq	#0,d0
 		move.b	$1A(a0),d0
 		add.w	d0,d0
@@ -16337,12 +16401,12 @@ Obj_Index:
 		dc.l Obj16		; Diagonally moving lift from HTZ
 		dc.l Obj17		; (S1) GHZ rotating log helix spikes
 		dc.l Obj18		; Stationary/moving platforms from GHZ and EHZ
-		dc.l Obj19		; Platform from CPZ
+		dc.l Obj_0x19_Elevator;Obj19		; Platform from CPZ change to obj19 for the NA version
 		dc.l Obj1A		; Collapsing platform from GHZ and HPZ
-		dc.l ObjNull
+		dc.l Obj_0x1B_Speed_Booster;ObjNull
 		dc.l Obj1C		; Stage decorations in GHZ, EHZ, HTZ and HPZ
-		dc.l ObjNull
-		dc.l ObjNull
+		dc.l Obj_0x1D_Worms;ObjNull
+		dc.l Obj_0x1E_Tube_Attributes;ObjNull
 		dc.l Obj1F		; (S1) Crabmeat from GHZ
 		dc.l ObjNull
 		dc.l Obj21		; Score/Rings/Time display (HUD)
@@ -16362,7 +16426,7 @@ Obj_Index:
 		dc.l ObjNull
 		dc.l ObjNull
 		dc.l ObjNull
-		dc.l ObjNull
+		dc.l Obj_0x32_Breakable_Obstacule      ; loc_1768A;ObjNull
 		dc.l ObjNull
 		dc.l Obj34		; (S1) Level title card
 		dc.l ObjNull
@@ -16376,14 +16440,14 @@ Obj_Index:
 		dc.l Obj3D		; (S1) GHZ boss
 		dc.l Obj3E		; Egg prison
 		dc.l Obj3F		; Boss explosion
-		dc.l Obj40		; (S1) Motobug from GHZ
+		dc.l Obj_0x40_Diagonal_Springs;Obj40		; (S1) Motobug from GHZ
 		dc.l Obj41		; Spring
-		dc.l Obj42		; (S1) Newtron from GHZ
+		dc.l Obj_0x42_Steam_Vent;Obj42		; (S1) Newtron from GHZ
 		dc.l ObjNull
 		dc.l Obj44		; (S1) Unbreakable wall
 		dc.l ObjNull
 		dc.l ObjNull
-		dc.l ObjNull
+		dc.l Obj_0x47_Switch;ObjNull
 		dc.l Obj48		; (S1) Eggman's wrecking ball
 		dc.l Obj49		; Waterfall sound effect
 		dc.l Obj4A		; Octus from HPZ
@@ -16412,30 +16476,30 @@ Obj_Index:
 		dc.l ObjNull
 		dc.l ObjNull
 		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
-		dc.l ObjNull
+		dc.l Obj_0x64_Pistons;ObjNull;64
+		dc.l ObjNull;65
+		dc.l Obj_0x66_Spring_Wall;ObjNull;66
+		dc.l Obj_0x67_Teleport_Attributes;ObjNull;67
+		dc.l Obj_0x68_Block_Arrow;ObjNull;68
+		dc.l Obj_0x69_Screw_Nut;ObjNull;69
+		dc.l ObjNull;6A
+		dc.l Obj_0x6B_Mz_Platform;6B
+		dc.l ObjNull;6C
+		dc.l Obj_0x6D_Harpoon;ObjNull;6D
+		dc.l ObjNull;6E
+		dc.l ObjNull;6F
+		dc.l ObjNull;70
+		dc.l ObjNull;71
+		dc.l ObjNull;72
+		dc.l ObjNull;73
+		dc.l ObjNull;74
+		dc.l ObjNull;75
+		dc.l ObjNull;76
+		dc.l ObjNull;77
+		dc.l Obj_0x78_Rotating_Platforms;ObjNull
 		dc.l Obj79		; Checkpoint
 		dc.l ObjNull
-		dc.l ObjNull
+		dc.l Obj_0x7B_Spring_Tubes;ObjNull
 		dc.l ObjNull
 		dc.l Obj7D		; (S1) Hidden points at end of stage
 		dc.l ObjNull
@@ -16495,6 +16559,7 @@ ObjectMoveAndFall:
 
 ; SpeedToPos:
 ObjectMove:
+SpeedToPos:
 		move.l	8(a0),d2	; load x position
 		move.l	$C(a0),d3	; load y position
 		move.w	$10(a0),d0	; load x speed
@@ -16609,10 +16674,29 @@ loc_CE7C:
 
 loc_CE8E:
 		bra.w	DeleteObject
+loc_D2D8:		
+		tst.w   (Two_player_mode).w
+		beq.s   loc_D2E2
+		bra.w     DisplaySprite           ; loc_D3C2
+loc_D2E2:
+		andi.w  #$FF80, D0
+		sub.w   (Camera_X_pos_coarse).w, D0
+		cmpi.w  #$0280, D0
+		bhi.w    loc_D2F6
+		bra.w     DisplaySprite           ; loc_D3C2
+loc_D2F6:
+		lea     ($FFFFFC00).w, A2;(Object_Respawn_Table).w, A2
+		moveq   #$00, D0
+		move.b  $0023(A0), D0
+		beq.s   loc_D308
+		bclr    #$07, $02(A2, D0)
+loc_D308:
+		bra.w     DeleteObject            ; loc_D3B4
 ; ===========================================================================
 ; does nothing instead of calling DisplaySprite in the case of no deletion
 ; loc_CE92:
 MarkObjGone2:
+loc_D30C:
 		tst.w	(Two_player_mode).w
 		beq.s	loc_CE9A
 		rts
@@ -20405,6 +20489,7 @@ SolidObject:
 		addq.b	#1,d6
 
 sub_F456:
+;loc_F510:
 		btst	d6,$22(a0)
 		beq.w	SolidObject_OnScreenTest
 		move.w	d1,d2
@@ -20436,7 +20521,7 @@ locret_F490:
 ; ===========================================================================
 ; alternate function to check for collision even if off-screen, unused
 ; in this build...
-; SolidObject_Always:
+SolidObject_Always:
 		lea	($FFFFB000).w,a1	; a1=character
 		moveq	#3,d6
 		movem.l	d1-d4,-(sp)
@@ -20446,6 +20531,7 @@ locret_F490:
 		addq.b	#1,d6
 ; loc_F4A8:
 SolidObject_Always_SingleCharacter:
+loc_F510:
 		btst	d6,$22(a0)
 		beq.w	SolidObject_cont
 		move.w	d1,d2
@@ -20498,6 +20584,7 @@ loc_F4DA:
 		addq.b	#1,d6
 ; loc_F4FA:
 SlopedSolid_SingleCharacter:
+loc_F562:
 		btst	d6,$22(a0)
 		beq.w	SlopedSolid_cont
 		move.w	d1,d2
@@ -20916,6 +21003,7 @@ loc_F824:				; CODE XREF: sub_F7F2+22j
 
 
 sub_F82E:				; CODE XREF: ROM:000083C2p
+PlatformObject:
 		lea	($FFFFB000).w,a1
 		moveq	#3,d6
 		movem.l	d1-d4,-(sp)
@@ -21723,6 +21811,9 @@ loc_FF58:
 		neg.w	d1
 		cmp.w	d1,d0
 		bgt.s	loc_FF64
+		add.w	d5,d0		; remove this frame's acceleration change
+		cmp.w	d1,d0		; compare speed with top speed
+		ble.s	loc_FF64	; if speed was already greater than the maximum, branch
 		move.w	d1,d0
 
 loc_FF64:
@@ -21769,6 +21860,9 @@ loc_FFC2:
 		add.w	d5,d0
 		cmp.w	d6,d0
 		blt.s	loc_FFCA
+		sub.w	d5,d0		; remove this frame's acceleration change
+		cmp.w	d6,d0		; compare speed with top speed
+		bge.s	loc_FFCA	; if speed was already greater than the maximum, branch
 		move.w	d6,d0
 
 loc_FFCA:
@@ -21947,6 +22041,9 @@ Sonic_ChgJumpDir:			; CODE XREF: ROM:0000FCCEp
 		neg.w	d1
 		cmp.w	d1,d0
 		bgt.s	loc_10136
+		add.w	d5,d0		; +++ remove this frame's acceleration change
+		cmp.w	d1,d0		; +++ compare speed with top speed
+		ble.s	loc_10136	; +++ if speed was already greater than the maximum, branch
 		move.w	d1,d0
 
 loc_10136:				; CODE XREF: Sonic_ChgJumpDir+1Cj
@@ -21957,6 +22054,9 @@ loc_10136:				; CODE XREF: Sonic_ChgJumpDir+1Cj
 		add.w	d5,d0
 		cmp.w	d6,d0
 		blt.s	loc_1014C
+		sub.w	d5,d0		; +++ remove this frame's acceleration change
+		cmp.w	d6,d0		; +++ compare speed with top speed
+		bge.s	loc_1014C;Obj01_JumpMove	; +++ if speed was already greater than the maximum, branch
 		move.w	d6,d0
 
 loc_1014C:				; CODE XREF: Sonic_ChgJumpDir+36j
@@ -21984,7 +22084,7 @@ loc_10162:				; CODE XREF: Sonic_ChgJumpDir+50j
 		bcc.s	loc_1017E
 		move.w	#0,d0
 
-loc_1017E:				; CODE XREF: Sonic_ChgJumpDir+72j
+loc_1017E:; Obj01_JumpMove:				; CODE XREF: Sonic_ChgJumpDir+72j
 		move.w	d0,$10(a0)
 		rts
 ; ---------------------------------------------------------------------------
@@ -26153,6 +26253,8 @@ Floor_ChkTile:				; CODE XREF: FindFloorp FindFloor2p ...
 
 FindFloor:				; CODE XREF: AnglePos+A0p
 					; AnglePos+CEp ...
+		cmpi.b	#0,(Current_Zone).w
+		beq.w	lc_7338;beq.s	lc_7338
 		bsr.s	Floor_ChkTile
 		move.w	(a1),d0
 		move.w	d0,d4
@@ -26229,8 +26331,82 @@ loc_12E44:				; CODE XREF: FindFloor+78j
 		subi.w	#$10,d1
 		rts
 ; End of function FindFloor
+lc_7338:
+		bsr.w	Floor_ChkTile;bsr.s	Floor_ChkTile
+		move.w	(a1),d0
+		move.w	d0,d4
+		andi.w	#$3FF,d0
+		beq.s	lc_12DBE
+		btst	d5,d4
+		bne.s	lc_12DCC
 
+lc_12DBE:				; CODE XREF: FindFloor+Aj
+					; FindFloor+28j ...
+		add.w	a3,d2
+		bsr.w	FindFloor2
+		sub.w	a3,d2
+		addi.w	#$10,d1
+		rts
+; ---------------------------------------------------------------------------
 
+lc_12DCC:				; CODE XREF: FindFloor+Ej
+		movea.l	($FFFFF796).w,a2
+		add.w	d0,d0
+		move.w	(a2,d0.w),d0
+		beq.s	lc_12DBE
+		lea	(AngleMap_GHZ).l,a2;(AngleMap).l,a2
+		move.b	(a2,d0.w),(a4)
+		lsl.w	#4,d0
+		move.w	d3,d1
+		btst	#$A,d4
+		beq.s	lc_12DF0
+		not.w	d1
+		neg.b	(a4)
+
+lc_12DF0:				; CODE XREF: FindFloor+3Cj
+		btst	#$B,d4
+		beq.s	lc_12E00
+		addi.b	#$40,(a4) ; '@'
+		neg.b	(a4)
+		subi.b	#$40,(a4) ; '@'
+
+lc_12E00:				; CODE XREF: FindFloor+46j
+		andi.w	#$F,d1
+		add.w	d0,d1
+		lea	(ColArray1_GHZ).l,a2;(ColArray1).l,a2
+		move.b	(a2,d1.w),d0
+		ext.w	d0
+		eor.w	d6,d4
+		btst	#$B,d4
+		beq.s	lc_12E1C
+		neg.w	d0
+
+lc_12E1C:				; CODE XREF: FindFloor+6Aj
+		tst.w	d0
+		beq.s	lc_12DBE
+		bmi.s	lc_12E38
+		cmpi.b	#$10,d0
+		beq.s	lc_12E44
+		move.w	d2,d1
+		andi.w	#$F,d1
+		add.w	d1,d0
+		move.w	#$F,d1
+		sub.w	d0,d1
+		rts
+; ---------------------------------------------------------------------------
+
+lc_12E38:				; CODE XREF: FindFloor+72j
+		move.w	d2,d1
+		andi.w	#$F,d1
+		add.w	d1,d0
+		bpl.w	lc_12DBE
+
+lc_12E44:				; CODE XREF: FindFloor+78j
+		sub.w	a3,d2
+		bsr.w	FindFloor2
+		add.w	a3,d2
+		subi.w	#$10,d1
+		rts
 ; =============== S U B	R O U T	I N E =======================================
 
 
@@ -26474,9 +26650,10 @@ loc_13014:				; CODE XREF: FindWall2+74j
 ; ||||||||||||||| S U B R O U T I N E |||||||||||||||||||||||||||||||||||||||
 
 ; FloorLog_Unk: ConvertCollisionArray:
-ApplySonic1Collision:
-		rts
+;ApplySonic1Collision:
+;		rts
 ; ---------------------------------------------------------------------------
+ApplySonic1Collision:
 		lea	(ColArray1_GHZ).l,a1
 		tst.b	(Current_Zone).w
 		beq.s	loc_13038
@@ -38000,7 +38177,7 @@ levartptrs macro plc1,plc2,palette,art,map16x16,map128x128,music
 ; MainLoadBlocks:
 LevelArtPointers:
 		levartptrs  4,  5,  4, Nem_GHZ, Map16_GHZ, UnkComp_Map128_GHZ, bgm_GHZ	;   0 ; GHZ  ; GREEN HILL ZONE
-		levartptrs  6,  7,  5, Nem_CPZ, Map16_CPZ, Map128_CPZ, bgm_LZ			;   1 ; LZ   ; LABYRINTH ZONE
+		levartptrs  6,  7,  5, Nem_MTZ, BM16_MTZ,  BM128_MTZ, bgm_LZ			;   1 ; LZ   ; LABYRINTH ZONE
 		levartptrs  8,  9,  6, Nem_CPZ, Map16_CPZ, Map128_CPZ, bgm_MZ		;   2 ; CPZ  ; CHEMICAL PLANT ZONE
 		levartptrs $A, $B,  7, Nem_EHZ, Map16_EHZ, Map128_EHZ, bgm_SLZ		;   3 ; EHZ  ; EMERALD HILL ZONE
 		levartptrs $C, $D,  8, Nem_HPZ, Map16_HPZ, Map128_HPZ, bgm_SYZ		;   4 ; HPZ  ; HIDDEN PALACE ZONE
@@ -38034,7 +38211,7 @@ LevelArtPointers:
 ArtLoadCues:	dc.w PLC_Main-ArtLoadCues,PLC_Main2-ArtLoadCues
 		dc.w PLC_Explode-ArtLoadCues,PLC_GameOver-ArtLoadCues
 		dc.w PLC_GHZ-ArtLoadCues,PLC_GHZ2-ArtLoadCues
-		dc.w PLC_CPZ-ArtLoadCues,PLC_CPZ2-ArtLoadCues
+		dc.w PLC_MTZ-ArtLoadCues,PLC_MTZ2-ArtLoadCues
 		dc.w PLC_CPZ-ArtLoadCues,PLC_CPZ2-ArtLoadCues
 		dc.w PLC_EHZ-ArtLoadCues,PLC_EHZ2-ArtLoadCues
 		dc.w PLC_HPZ-ArtLoadCues,PLC_HPZ2-ArtLoadCues
@@ -38044,7 +38221,7 @@ ArtLoadCues:	dc.w PLC_Main-ArtLoadCues,PLC_Main2-ArtLoadCues
 		dc.w PLC_S1SpecialStage-ArtLoadCues,PLC_GHZAnimals-ArtLoadCues
 		dc.w PLC_LZAnimals-ArtLoadCues,PLC_CPZAnimals-ArtLoadCues
 		dc.w PLC_EHZAnimals-ArtLoadCues,PLC_HPZAnimals-ArtLoadCues
-		dc.w PLC_HTZAnimals-ArtLoadCues,LeftoverArt_Unknown-ArtLoadCues
+		dc.w PLC_HTZAnimals-ArtLoadCues,PLC_HTZAnimals-ArtLoadCues;LeftoverArt_Unknown-ArtLoadCues
 		dc.w LeftoverArt_Unknown+2-ArtLoadCues,LeftoverArt_Unknown+4-ArtLoadCues
 		dc.w LeftoverArt_Unknown+6-ArtLoadCues,LeftoverArt_Unknown+8-ArtLoadCues
 
@@ -38101,7 +38278,7 @@ PLC_GHZ:	dc.w ((PLC_GHZ_End-PLC_GHZ)/6)-1
 		plreq $4C6, Nem_GHZ_Bridge
 		plreq $4D0, Nem_SwingPlatform
 		plreq $4E0, Nem_Motobug
-		plreq $6C0, Nem_GHZ_Rock
+;		plreq $6C0, Nem_GHZ_Rock
 PLC_GHZ_End:
 ; --------------------------------------------------------------------------------------
 ; PATTERN LOAD REQUEST LIST
@@ -38110,14 +38287,41 @@ PLC_GHZ_End:
 PLC_GHZ2:	dc.w ((PLC_GHZ2_End-PLC_GHZ2)/6)-1
 		plreq $470, Nem_GHZ_Piranha
 PLC_GHZ2_End:
+PLC_MTZ:	dc.w ((PLC_MTZ_End-PLC_MTZ-$02)/6)-1
+		plreq 0, Nem_MTZ
+PLC_MTZ_End:
+PLC_MTZ2:	dc.w ((PLC_MTZ2_End-PLC_MTZ2-$02)/6)-1
+		plreq $434, Nem_VSpikes
+		plreq $43C, Nem_DSpring
+		plreq $45C, Nem_VSpring2
+		plreq $470, Nem_HSpring2
+PLC_MTZ2_End
 ; --------------------------------------------------------------------------------------
 ; PATTERN LOAD REQUEST LIST
 ; Chemical Plant Zone primary
 ; --------------------------------------------------------------------------------------
-PLC_CPZ:	dc.w ((PLC_CPZ_End-PLC_CPZ)/6)-1
+PLC_CPZ:	dc.w ((PLC_CPZ_End-PLC_CPZ-$02)/6)-1
 		plreq 0, Nem_CPZ
 		plreq $3D0, Nem_CPZ_Unknown
 		plreq $400, Nem_CPZ_FloatingPlatform
+		dc.l    Cpz_Metal_Structure     ; loc_77A1C  
+		dc.w    $6E60
+		dc.l    ArtNem_ConstructionStripes      ; loc_77C66
+		dc.w    $7280 
+		dc.l    ArtNem_CPZBooster       ; loc_77942
+		dc.w    $7380
+		dc.l    ArtNem_CPZElevator            ; loc_77684
+		dc.w    $7400  
+		dc.l    ArtNem_CPZAnimatedBits ; loc_77CD2 
+		dc.w    $7600  
+		dc.l    ArtNem_CPZTubeSpring        ; loc_78074
+		dc.w    $7C00   
+;		dc.l    Nem_HPZ_WaterSurface;Water_Surface           ; loc_777D2  
+;		dc.w    $400
+		dc.l    ArtNem_CPZStairBlock           ; loc_77EB4
+		dc.w    $8300 
+		dc.l    ArtNem_CPZMetalBlock
+		dc.w    $8600 
 PLC_CPZ_End:
 ; --------------------------------------------------------------------------------------
 ; PATTERN LOAD REQUEST LIST
@@ -38125,7 +38329,9 @@ PLC_CPZ_End:
 ; --------------------------------------------------------------------------------------
 PLC_CPZ2:	dc.w ((PLC_CPZ2_End-PLC_CPZ2)/6)-1
 		plreq $434, Nem_VSpikes
-		plreq $43C, Nem_DSpring
+		dc.l    ArtNem_CPZDroplet               ; loc_779AA
+		dc.w    $8780  
+;		plreq $43C, Nem_DSpring
 		plreq $45C, Nem_VSpring2
 		plreq $470, Nem_HSpring2
 PLC_CPZ2_End:
@@ -39616,32 +39822,32 @@ Art_UnkZone_8:	dc.l  $6600666,	$7777777, $8888888,	   0, $6600666,	$7777777, $88
 ; ---------------------------------------------------------------------------
 ; Level layouts, three entries per act (although the third one is unused)
 ; --------------------------------------------------------------------------- 
-Level_Index:	dc.w Level_GHZ1-Level_Index,Level_GHZBg-Level_Index,Level_Null-Level_Index
+Level_Index:	dc.w Level_GHZ1-Level_Index,Level_GHZBg-Level_Index,Level_Null-Level_Index;GHZ
 		dc.w Level_GHZ2-Level_Index,Level_GHZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_GHZ3-Level_Index,Level_GHZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
 
+		dc.w Level_MTZ1-Level_Index,Level_MTZBg-Level_Index,Level_Null-Level_Index;LZ
+		dc.w Level_MTZ2-Level_Index,Level_MTZBg-Level_Index,Level_Null-Level_Index
+		dc.w Level_MTZ3-Level_Index,Level_MTZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
-		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
+
+		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index;CPZ
+		dc.w Level_CPZ2-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
 
-		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
-		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
-		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
-		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
-
-		dc.w Level_EHZ1-Level_Index,Level_EHZBg-Level_Index,Level_Null-Level_Index
+		dc.w Level_EHZ1-Level_Index,Level_EHZBg-Level_Index,Level_Null-Level_Index;EHZ
 		dc.w Level_EHZ2-Level_Index,Level_EHZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_EHZ1-Level_Index,Level_EHZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_EHZ2-Level_Index,Level_EHZBg-Level_Index,Level_Null-Level_Index
 
-		dc.w Level_HPZ1-Level_Index,Level_HPZBg-Level_Index,Level_Null-Level_Index
+		dc.w Level_HPZ1-Level_Index,Level_HPZBg-Level_Index,Level_Null-Level_Index;HPZ
 		dc.w Level_HPZ1-Level_Index,Level_HPZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_HPZ1-Level_Index,Level_HPZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_HPZ1-Level_Index,Level_HPZBg-Level_Index,Level_Null-Level_Index
 
-		dc.w Level_HTZ1-Level_Index,Level_HTZBg-Level_Index,Level_Null-Level_Index
+		dc.w Level_HTZ1-Level_Index,Level_HTZBg-Level_Index,Level_Null-Level_Index;HTZ
 		dc.w Level_HTZ2-Level_Index,Level_HTZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_HTZ1-Level_Index,Level_HTZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_HTZ2-Level_Index,Level_HTZBg-Level_Index,Level_Null-Level_Index
@@ -39720,12 +39926,22 @@ Level_HTZBg:	incbin	"level/layout/HTZ_BG.bin"
 		even
 Level_CPZ1:	incbin	"level/layout/CPZ_1.bin"
 		even
+Level_CPZ2:	incbin	"level/layout/CPZ_2.bin"
+		even
 Level_HPZ1:	incbin	"level/layout/HPZ_1.bin"
 		even
 Level_CPZBg:	incbin	"level/layout/CPZ_BG.bin"
 		even
 Level_HPZBg:	incbin	"level/layout/HPZ_BG.bin"
 		even
+Level_MTZBg:
+		incbin	"level/layout/MTZ_BG.bin"
+Level_MTZ1:
+		incbin	"level/layout/MTZ_1.bin"
+Level_MTZ2:
+		incbin	"level/layout/MTZ_2.bin"
+Level_MTZ3:
+		incbin	"level/layout/MTZ_3.bin"
 Level_Null:	dc.b   0,  0,  0,  0
 
 Art_BigRing:	dc.l	     0,	       0,	 0,	   0,	    $D,	     $DD,    $EDDC,   $EDDCC,	     0,	     $DD,   $DDCCC, $DDCCC6C,$DCCCCCCC,$CCCCCCCC,$CCCDCDDD,$DDCCCCDD; 0
@@ -40240,9 +40456,12 @@ ObjPos_GHZ2:	incbin	"level/objects/GHZ_2.bin"
 		dc.w $FFFF,    0,    0
 ObjPos_GHZ3:	incbin	"level/objects/GHZ_3.bin"
 		dc.w $FFFF,    0,    0
-ObjPos_LZ1:	dc.w $FFFF,    0,    0
-ObjPos_LZ2:	dc.w $FFFF,    0,    0
-ObjPos_LZ3:	dc.w $FFFF,    0,    0
+ObjPos_LZ1:		incbin	"level/objects/MTZ_1.bin"
+		dc.w $FFFF,    0,    0
+ObjPos_LZ2:		incbin	"level/objects/MTZ_2.bin"
+		dc.w $FFFF,    0,    0
+ObjPos_LZ3:		incbin	"level/objects/MTZ_3.bin"
+		dc.w $FFFF,    0,    0
 ObjPos_S1LZ1pf1:dc.w	 7,$1078, $21A	; 0 ; DATA XREF: ROM:ObjPos_Indexo
 		dc.w	 0,$10BE, $291	; 3
 		dc.w	 2,$10BE, $307	; 6
@@ -40305,7 +40524,8 @@ ObjPos_S1LZ3pf2:dc.w	 8,$1252, $20A	; 0 ; DATA XREF: ROM:ObjPos_Indexo
 		dc.w	 0		; 30
 ObjPos_CPZ1:	incbin	"level/objects/CPZ_1.bin"
 		dc.w $FFFF,    0,    0
-ObjPos_CPZ2:	dc.w $FFFF,    0,    0
+ObjPos_CPZ2:	incbin	"level/objects/CPZ_2.bin"
+		dc.w $FFFF,    0,    0
 ObjPos_CPZ3:	dc.w $FFFF,    0,    0
 ObjPos_EHZ1:	incbin	"level/objects/EHZ_1.bin"
 		dc.w $FFFF,    0,    0
@@ -40503,6 +40723,8 @@ RingPos_HTZ1:	incbin	"level/rings/HTZ_1.bin"
 RingPos_HTZ2:	incbin	"level/rings/HTZ_2.bin"
 		even
 RingPos_CPZ1:	incbin	"level/rings/CPZ_1.bin"
+		even
+RingPos_CPZ2:	incbin	"level/rings/CPZ_2.bin"
 		even
 
 ; ===========================================================================
@@ -42267,6 +42489,103 @@ S1Nem_EndingSONICText:dc.b $80,$30,$80,	 6,$3A,$15,$1B,$24,  9,$35,$1A,$45,$18,$
 
 Leftover_E166F:
 		incbin	"misc/leftovers/E166F.bin"
+Obj_0x1B_Speed_Booster:
+		include		"SWobjects/1B Speed Booster.asm"
+Obj_0x1D_Worms:
+		include		"SWobjects/1D CPZ Worms.asm"
+Obj_0x1E_Tube_Attributes:
+		include		"SWobjects/1E CPZ Tube.asm"
+Obj_0x32_Breakable_Obstacule:
+		include		"SWobjects/32 CPZ Tube Cap.asm"
+Obj_0x6B_Mz_Platform:
+		include		"SWobjects/6B CPZ big rotating blocks.asm"
+Obj_0x78_Rotating_Platforms:
+		include		"SWobjects/78 CPZ rotating block platforms.asm"
+Obj_0x7B_Spring_Tubes:
+		include		"SWobjects/7B CPZ spring tube cap.asm"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Booster things in CPZ			; ArtNem_77942: Cpz_Speed_Booster:
+	even
+ArtNem_CPZBooster:	incbin	"art/nemesis/Speed booster from CPZ.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; CPZ droplet chain enemy		; ArtNem_779AA: Cpz_Worms:
+	even
+ArtNem_CPZDroplet:	incbin	"art/nemesis/CPZ worm enemy.bin"
 
+Cpz_Metal_Structure: ; loc_77A1C:      
+		incbin  "art\nemesis\metal_st.nem" 
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; CPZ metal block			; ArtNem_77C26:
+	even
+ArtNem_CPZMetalBlock:	incbin	"art/nemesis/CPZ large moving platform blocks.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Yellow and black stripy tiles from DEZ	; ArtNem_77C66: Cpz_Automatic_Door:
+	even
+ArtNem_ConstructionStripes:	incbin	"art/nemesis/Stripy blocks from CPZ.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Yellow flipping platforms and stuff CPZ	; ArtNem_77CD2: Cpz_Open_Close_Platform:
+	even
+ArtNem_CPZAnimatedBits:	incbin	"art/nemesis/Small yellow moving platform from CPZ.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Moving block from CPZ			; ArtNem_77EB4: Cpz_Platforms:
+	even
+ArtNem_CPZStairBlock:	incbin	"art/nemesis/Moving block from CPZ.bin"	   
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Spring that covers tube in CPZ	; ArtNem_78074: Cpz_Spring_Tubes:
+	even
+ArtNem_CPZTubeSpring:	incbin	"art/nemesis/CPZ spintube exit cover.bin"
+ArtNem_CPZElevator:	incbin	"art/nemesis/Large moving platform from CNZ.bin"
+		include		"SWcontantsDefinedinNA.asm"
+Obj_0x19_Elevator:
+		include	"SWobjects/19 CPZ platforms.asm"
+Nem_MTZ:	
+		incbin	"art/nemesis/MTZ primary.bin"
+BM16_MTZ:
+		incbin	"mappings/16x16/MTZ.bin"
+BM128_MTZ:
+		incbin	"mappings/128x128/MTZ.bin"
+ColP_MTZ:
+ColS_MTZ:
+		incbin	"collision/MTZ 16x16 collision index.bin"
+Nem_TitleOnCrack:
+		incbin	"art/nemesis/TitleScr.nem"
+Eni_TitleMapOnCrack:
+		incbin	"data/titlescr.eni"
+Obj_0x40_Diagonal_Springs:
+		include		"SWobjects/40 diagonal springs.asm"
+Obj_0x42_Steam_Vent:
+		include		"SWobjects/42 MTZ spring up thing.asm"
+Obj_0x64_Pistons:
+		include		"SWobjects/64 MTZ pistons that crush you.asm"
+Obj_0x66_Spring_Wall:
+		include		"SWobjects/66 MTZ yellow bumpers.asm"
+Obj_0x67_Teleport_Attributes:
+		include		"SWobjects/67 MTZ teleportation tube.asm"
+Obj_0x68_Block_Arrow:
+		include		"SWobjects/68 MTZ block with spikes.asm"
+;Insert object 69(nice) here, before these things
+Obj_0x6D_Harpoon:
+		include		"SWobjects/79 MTZ spike from ground.asm"
+J_MarkObjGone_0F: ; loc_1B7F0:
+		jmp     MarkObjGone             ; (loc_D2A0)
+J_SingleObjLoad2_05: ; loc_1B7F6:
+		jmp     SingleObjLoad2      ; (loc_E788)
+J_Adjust2PArtPointer_13: ; loc_1B7FC:
+		jmp     Adjust2PArtPointer     ; (loc_DC30)
+J_SolidObject_08: ; loc_1B802:
+		jmp     SolidObject             ; (loc_F4A0)
+loc_1B808:
+		jmp     (loc_D2D8)       
+Obj_0x69_Screw_Nut:
+		include		"SWobjects/69 MTZ screw that lock you in place.asm"
+Obj_0x47_Switch:
+		include		"SWobjects/47 switch.asm"
 ; end of 'ROM'
 		END
