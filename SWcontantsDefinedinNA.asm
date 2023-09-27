@@ -22,3 +22,6 @@ Object_Respawn_Table:	equ $FFFFFC00
 Normal_palette_line4:	equ	$FFFFFB60;72
 Camera_X_pos_diff:		equ	$FFFFEEB0
 Camera_Y_pos_diff:		equ	$FFFFEEB2
+Normal_palette_line2:	equ	$FFFFFB20;6
+Camera_X_pos:	equ	$FFFFEE00
+Camera_Y_pos:	equ	$FFFFEE04
