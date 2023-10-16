@@ -2365,6 +2365,10 @@ PalCycle:	dc.w PalCycle_GHZ-PalCycle
 		dc.w PalCycle_HTZ-PalCycle
 		dc.w PalCycle_WZ-PalCycle;PalCycle_GHZ-PalCycle;ending
 		dc.w PalCycle_DHz-PalCycle
+		dc.w PalCycle_CNz-PalCycle
+		dc.w PalCycle_OOz-PalCycle
+		dc.w PalCycle_NGHz-PalCycle
+		dc.w PalCycle_SSZ-PalCycle;i'll change it later but not now
 ; ===========================================================================
 
 PalCycle_S1TitleScreen:
@@ -2407,6 +2411,19 @@ loc_1FA4:
 
 return_1FB0:		
 		rts
+PalCycle_OOz: ; loc_20CE: ; $0A - Oil Ocean Rotating Palette routine
+		subq.w  #$01, (PalCycle_Timer).w
+		bpl.s   loc_20FA
+		move.w  #$0007, (PalCycle_Timer).w
+		lea     (Pal_OOzCyc).l, A0        ; loc_2380
+		move.w  (PalCycle_Frame).w, D0
+		addq.w  #$02, (PalCycle_Frame).w
+		andi.w  #$0006, (PalCycle_Frame).w
+		lea     (Normal_palette_line3+$14).w, A1
+		move.l  $00(A0, D0), (A1)+
+		move.l  $04(A0, D0), (A1)
+loc_20FA:
+		rts    
 PalCycle_DHz: ; loc_20FC: ; $0B - Dust Hill Rotating Palette routine
 		subq.w  #$01, (PalCycle_Timer).w
 		bpl.s   loc_2122
@@ -2418,6 +2435,43 @@ PalCycle_DHz: ; loc_20FC: ; $0B - Dust Hill Rotating Palette routine
 		move.w  $00(A0, D0), (Normal_palette_line2+$16).w
 loc_2122:
 		rts
+PalCycle_CNz: ; loc_2124: ; $0C - Casino Night Rotating Palette routine
+		subq.w  #$01, (PalCycle_Timer).w
+		bpl.w    loc_21C2
+		move.w  #$0007, (PalCycle_Timer).w
+		lea     (Pal_CNzCyc1).l, A0       ; loc_2398
+		move.w  (PalCycle_Frame).w, D0
+		addq.w  #$02, (PalCycle_Frame).w
+		cmpi.w  #$0006, (PalCycle_Frame).w
+		bcs.s   loc_214E
+		move.w  #$0000, (PalCycle_Frame).w
+loc_214E:
+		lea     $00(A0, D0), A0
+		lea     (Normal_palette).w, A1
+		move.w  0(A0), $004A(A1);_move.w  0(A0), $004A(A1)
+		move.w  $0006(A0), $004C(A1)
+		move.w  $000C(A0), $004E(A1)
+		move.w  $0012(A0), $0056(A1)
+		move.w  $0018(A0), $0058(A1)
+		move.w  $001E(A0), $005A(A1)
+		lea     (Pal_CNzCyc2).l, A0       ; loc_23BC
+		lea     $00(A0, D0), A0
+		move.w  0(A0), $0064(A1);_move.w  0(A0), $0064(A1)
+		move.w  $0006(A0), $0066(A1)
+		move.w  $000C(A0), $0068(A1)
+		lea     (Pal_CNzCyc3).l, A0       ; loc_23CE
+		move.w  (PalCycle_Frame2).w, D0
+		addq.w  #$02, (PalCycle_Frame2).w
+		cmpi.w  #$001C, (PalCycle_Frame2).w
+		bcs.s   loc_21B2
+		move.w  #$0000, (PalCycle_Frame2).w
+loc_21B2:
+		lea     (Normal_palette_line4+$12).w, A1
+		move.w  $00(A0, D0), (A1)+
+		move.w  $1C(A0, D0), (A1)+
+		move.w  $38(A0, D0), (A1)+
+loc_21C2:
+		rts		
 PalCycle_CPZ:
 		subq.w	#1,($FFFFF634).w
 		bpl.s	locret_1F14
@@ -2507,6 +2561,35 @@ PalCycle_HTZ:
 
 locret_1FB8:
 		rts
+PalCycle_NGHz: ; loc_2236: ; $0F - Neo Green Hill Rotating Palette routine
+		lea     (Pal_GHzCyc).l, A0        ; loc_2284
+		subq.w  #$01, (PalCycle_Timer).w
+		bpl.s   loc_2262
+		move.w  #$0005, (PalCycle_Timer).w
+		move.w  (PalCycle_Frame).w, D0
+		addq.w  #$01, (PalCycle_Frame).w
+		andi.w  #$0003, D0
+		lsl.w   #$03, D0
+		lea     (Normal_palette_line3+4).w, A1
+		move.l  $00(A0, D0), (A1)+
+		move.l  $04(A0, D0), (A1)
+loc_2262:
+		rts  
+PalCycle_SSZ:
+        lea    (word_sand).l,a0
+        subq.w    #1,($FFFFF634).w
+        bpl.s    locret_1990
+        move.w    #5,($FFFFF634).w
+        move.w    ($FFFFF632).w,d0
+        addq.w    #1,($FFFFF632).w
+        andi.w    #3,d0
+        lsl.w    #3,d0
+        lea    (Normal_palette_line4+4).w,a1
+        move.l    (a0,d0.w),(a1)+
+        move.l    4(a0,d0.w),(a1)
+
+locret_1990:
+        rts
 ; ===========================================================================
 Pal_HTZCyc2:	incbin "art/palettes/Hill Top Lava Delay.bin"
 Pal_S1TitleCyc:	incbin "art/palettes/S1 Title Water.bin"
@@ -2518,6 +2601,10 @@ Pal_CPZCyc2:	incbin "art/palettes/CPZ Cycle 2.bin"
 Pal_CPZCyc3:	incbin "art/palettes/CPZ Cycle 3.bin"
 Pal_HPZCyc1:	incbin "art/palettes/HPZ Water Cycle.bin"
 Pal_HPZCyc2:	incbin "art/palettes/HPZ Underwater Cycle.bin"
+word_sand:		incbin	"art/palettes/SSZ Cycle.bin"
+Pal_GHzCyc: ; loc_2284: ; $00 - Green Hill Rotating Palette               
+		dc.w    $0A86, $0E86, $0EA8, $0ECA, $0ECA, $0A86, $0E86, $0EA8
+		dc.w    $0EA8, $0ECA, $0A86, $0E86, $0E86, $0EA8, $0ECA, $0A86
 Pal_WzCyc: ; loc_2324: ; $02 - Wood Rotating Palette 
 		dc.w    $0248, $046A, $048C, $06CE, $0248, $046A, $048C, $06CE
 Pal_MzCyc1: ; loc_2334: ; $04/$05 - Metropolis Rotating Palette 
@@ -2527,8 +2614,24 @@ Pal_MzCyc2: ; loc_2340: ; $04/$05 - Metropolis Rotating Palette
 Pal_MzCyc3: ;loc_234C: ; $04/$05 - Metropolis Rotating Palette 
 		dc.w    $00A0, $0000, $00EE, $0000, $002E, $0000, $0E2E, $0000
 		dc.w    $0E80, $0000
+Pal_OOzCyc: ; loc_2380: ; $0A - Oil Ocean Rotating Palette 
+		dc.w    $0400, $0602, $0804, $0806, $0400, $0602, $0804, $0806
 Pal_DHzCyc: ; loc_2390: ; $0B - Dust Hill Rotating Palette 
 		dc.w    $000C, $006E, $00CE, $08EE
+Pal_CNzCyc1: ; loc_2398: ; $0C - Casino Night Rotating Palette 
+		dc.w    $000C, $00CC, $004C, $004C, $000C, $00CC, $00CC, $004C
+		dc.w    $000C, $00EC, $0080, $00C4, $00C4, $00EC, $0080, $0080
+		dc.w    $00C4, $00EC
+Pal_CNzCyc2: ; loc_23BC: ; $0C - Casino Night Rotating Palette 
+		dc.w    $0044, $0088, $00EE, $0088, $00EE, $0044, $00EE, $0044
+		dc.w    $0088
+Pal_CNzCyc3: ; loc_23CE: ; $0C - Casino Night Rotating Palette  
+		dc.w    $00EC, $0EEE, $00EA, $00E4, $06C0, $0CC4, $0E80, $0E40
+		dc.w    $0E04, $0C08, $0C2E, $000E, $006E, $00AE, $00AE, $00EC
+		dc.w    $0EEE, $00EA, $00E4, $06C0, $0CC4, $0E80, $0E40, $0E04
+		dc.w    $0C08, $0C2E, $000E, $006E, $00EE, $00AE, $00EC, $0EEE
+		dc.w    $00EA, $00E4, $06C0, $0CC4, $0E80, $0E40, $0E04, $0C08
+		dc.w    $0C2E, $000E
 ; ===========================================================================
 ; ---------------------------------------------------------------------------
 ; Subroutine to fade in from black
@@ -3104,7 +3207,8 @@ palptr	macro	ptr,ram,size
 	dc.w ram	; Location in ram to load palette into
 	dc.w size	; Size of palette in (bytes / 4)
 	endm
-
+Pal_NGHZ_U:		incbin	"art/palettes/NGHZ underwater.bin"
+Pal_CPZU:		incbin	"art/palettes/CPZ underwater.bin"
 PalPointers:	palptr	Pal_SegaBG,$FB00,$1F
 		palptr	Pal_Title,$FB00,$1F
 		palptr	Pal_LevelSelect,$FB00,$1F
@@ -3130,6 +3234,9 @@ PalPointers:	palptr	Pal_SegaBG,$FB00,$1F
 		palptr	Pal_CNZ,$FB20,$17
 		palptr	Pal_OOZ,$FB20,$17
 		palptr	Pal_NGHZ,$FB20,$17
+		palptr	Pal_CPZU,$FB00,$1F;7;$FB20,$17
+		palptr	Pal_NGHZ_U,$FB00,$1F;7;$FB20,$17; Sau 00, nushtu
+		palptr	Pal_SSZ,$FB20,$17
 ; ---------------------------------------------------------------------------
 Pal_SegaBG:		incbin	"art/palettes/Sega screen background.bin"
 Pal_Title:		incbin	"art/palettes/Title screen.bin"
@@ -3155,7 +3262,7 @@ Pal_DHZ:			incbin	"art/palettes/DHZ.bin"
 Pal_OOZ:		incbin	"art/palettes/OOZ.bin"
 Pal_CNZ:		incbin	"art/palettes/CNZ.bin"
 Pal_NGHZ:		incbin	"art/palettes/NGHZ.bin"
-Pal_NGHZ_U:		incbin	"art/palettes/NGHZ underwater.bin"
+Pal_SSZ:		incbin	"art/palettes/SSZ.bin"
 ; ===========================================================================
 		nop
 ; ===========================================================================
@@ -3183,7 +3290,7 @@ loc_2C88:
 
 ; ||||||||||||||| S U B R O U T I N E |||||||||||||||||||||||||||||||||||||||
 
-; PseudoRandomNumber:
+PseudoRandomNumber:
 RandomNumber:
 		move.l	($FFFFF636).w,d1
 		bne.s	loc_2C9C
@@ -3575,7 +3682,7 @@ loc_3330:
 		bsr.w	PalLoad1
 		move.b	#bgm_Title,d0
 		bsr.w	PlaySound_Special
-		move.b	#0,(Debug_mode_flag).w
+		move.b	#1,(Debug_mode_flag).w;was 0
 		move.w	#0,(Two_player_mode).w
 		move.w	#$178,(Demo_Time_left).w
 		lea	($FFFFB080).w,a1
@@ -3660,9 +3767,19 @@ Title_Cheat_CountC:			; CODE XREF: ROM:0000343Ej
 		beq.s	Title_Cheat_NoC
 		addq.w	#1,($FFFFFFE6).w
 
-Title_Cheat_NoC:			; CODE XREF: ROM:00003486j
+Title_Cheat_NoC:			; CODE XREF: ROM:00003486j;loc_3230:
 		tst.w	(Demo_Time_left).w
 		beq.w	Demo
+Title_CheckForB:;New code start here
+		cmpi.b	#$10, ($FFFFF605).w	; has B been pressed?
+		bne.s	StartCheck		; if not, branch
+
+Title_SecondCharacter:
+		move.b	#$01, ($FFFFFFF9).w	; set the multiple character flag to $01 (indicating Metal Sonic)
+		move.b	#$B5,d0			; put value of ring sound into d0
+		bsr.w	PlaySound_Special	; jump to the subroutine that plays the sound currently in d0 ($B5, at the moment)
+
+StartCheck:;New code end here
 		andi.b	#$80,($FFFFF605).w
 		beq.w	TitleScreen_Loop
 
@@ -3705,7 +3822,7 @@ LevelSelect_Loop:
 
 loc_3516:				; CODE XREF: ROM:0000350Ej
 		move.w	($FFFFFF82).w,d0
-		cmpi.w	#$14,d0
+		cmpi.w	#$1A,d0
 		bne.s	loc_3570
 		move.w	($FFFFFF84).w,d0
 		addi.w	#$80,d0	; '€'
@@ -3745,7 +3862,7 @@ loc_3570:				; CODE XREF: ROM:0000351Ej
 		add.w	d0,d0
 		move.w	LevelSelect_LevelOrder(pc,d0.w),d0
 		bmi.w	LevelSelect_Loop
-		cmpi.w	#$900,d0;#$700,d0
+		cmpi.w	#$C00,d0;#$B00,d0;#$700,d0
 		bne.s	LevelSelect_Level
 		move.b	#GameModeID_SpecialStage,(Game_Mode).w
 		clr.w	(Current_ZoneAndAct).w
@@ -3757,14 +3874,30 @@ loc_3570:				; CODE XREF: ROM:0000351Ej
 		move.l	#$1388,($FFFFFFC0).w
 		rts
 ; ---------------------------------------------------------------------------
-LevelSelect_LevelOrder:dc.w	0,    1,    2  ; 0
-		dc.w  $200, $201, $202	; 3
-		dc.w  $400, $401, $402	; 6
-		dc.w  $100, $101, $102	; 9
-		dc.w  $300, $301, $302	; 12
-		dc.w  $500, $501, $600;$103	; 15
-		dc.w  $601, $700, $701
-		dc.w  $900, $8000,$8000; 18
+LevelSelect_LevelOrder:
+		dc.w $300, $301;EHZ
+		dc.w $600, $601;WZ
+		dc.w $100, $101, $102;MZ
+		dc.w $500, $501;HTZ
+		dc.w $400, $401;HPZ
+		dc.w $900, $901;OOZ
+		dc.w $700, $701;DHZ
+		dc.w $800, $801;CNZ
+		dc.w $200, $201;CPZ
+		dc.w $B00, $B01;$8000, $8000;GCZ
+		dc.w $A00, $A01;NGHZ
+		dc.w $8000, $8000;DEZ
+		dc.w $C00, $8000
+;dc.w	0,    1,    2  ; 0 GHZ
+;		dc.w  $200, $201;,; $202	; 3 CPZ
+;		dc.w  $400;, ;$401;, $402	; 6 HPZ
+;		dc.w  $100, $101, $102	; 9 LZ
+;		dc.w  $300, $301;, $302	; 12 EHZ
+;		dc.w  $500, $501, $600;$103	; 15 HTZ & WZ1
+;		dc.w  $601, $700, $701;WZ2,DHZ
+;		dc.w  $800, $801;CNZ
+;		dc.w  $900, $901;OOZ
+;		dc.w  $B00, $8000,$8000; 18 SS, sound selec
 ; ---------------------------------------------------------------------------
 
 LevelSelect_Level:			; CODE XREF: ROM:0000357Ej
@@ -3875,14 +4008,14 @@ loc_3706:				; CODE XREF: LevelSelect_Controls+8j
 		beq.s	loc_3726
 		subq.w	#1,d0
 		bcc.s	loc_3726
-		moveq	#$16,d0;#$14,d0
+		moveq	#$1A,d0;#$14,d0
 
 loc_3726:				; CODE XREF: LevelSelect_Controls+28j
 					; LevelSelect_Controls+2Cj
 		btst	#1,d1
 		beq.s	loc_3736
 		addq.w	#1,d0
-		cmpi.w	#$17,d0
+		cmpi.w	#$1B,d0
 		bcs.s	loc_3736
 		moveq	#0,d0
 
@@ -3895,7 +4028,7 @@ loc_3736:				; CODE XREF: LevelSelect_Controls+34j
 
 loc_3740:				; CODE XREF: LevelSelect_Controls+Ej
 					; LevelSelect_Controls+1Ej
-		cmpi.w	#$16,($FFFFFF82).w;#$14,($FFFFFF82).w
+		cmpi.w	#$1A,($FFFFFF82).w;#$14,($FFFFFF82).w
 		bne.s	locret_377A
 		move.b	($FFFFF605).w,d1
 		andi.b	#$C,d1
@@ -3934,9 +4067,9 @@ LevelSelect_TextLoad:			; CODE XREF: ROM:000034DEp
 					; LevelSelect_Controls+44p ...
 		lea	(LevelSelect_Text).l,a1
 		lea	(vdp_data_port).l,a6
-		move.l	#$62100003,d4
+		move.l	#$608C0003,d4;#$62100003,d4
 		move.w	#$8680,d3
-		moveq	#$16,d1;#$14,d1
+		moveq	#$1A,d1;#$14,d1
 
 loc_3794:				; CODE XREF: LevelSelect_TextLoad+26j
 		move.l	d4,4(a6)
@@ -3946,26 +4079,23 @@ loc_3794:				; CODE XREF: LevelSelect_TextLoad+26j
 		moveq	#0,d0
 		move.w	($FFFFFF82).w,d0
 		move.w	d0,d1
-		move.l	#$62100003,d4
+		move.l	#$608C0003,d4;#$62100003,d4
 		lsl.w	#7,d0
 		swap	d0
 		add.l	d0,d4
 		lea	(LevelSelect_Text).l,a1
-		lsl.w	#3,d1
-		move.w	d1,d0
-		add.w	d1,d1
-		add.w	d0,d1
+		mulu.w	#$1B,d1
 		adda.w	d1,a1
 		move.w	#$C680,d3
 		move.l	d4,4(a6)
 		bsr.w	sub_381C
-		move.w	#$8680,d3
-		cmpi.w	#$16,($FFFFFF82).w;#$14,($FFFFFF82).w
+		move.w	#$8680,d3;#$8680,d3
+		cmpi.w	#$1A,($FFFFFF82).w;#$14,($FFFFFF82).w
 		bne.s	loc_37E6
 		move.w	#$C680,d3
 
 loc_37E6:				; CODE XREF: LevelSelect_TextLoad+64j
-		move.l	#$6C300003,(vdp_control_port).l
+		move.l	#$6DB00003,(vdp_control_port).l;#$6C300003,(vdp_control_port).l
 		move.w	($FFFFFF84).w,d0
 		addi.w	#$80,d0	; '€'
 		move.b	d0,d2
@@ -3999,7 +4129,7 @@ loc_3816:				; CODE XREF: sub_3808+8j
 
 sub_381C:				; CODE XREF: LevelSelect_TextLoad+1Cp
 					; LevelSelect_TextLoad+56p
-		moveq	#$17,d2
+		moveq	#$1A,d2
 
 loc_381E:				; CODE XREF: sub_381C+Cj sub_381C+16j
 		moveq	#0,d0
@@ -4052,30 +4182,62 @@ _X = $28
 _Y = $0F
 _Z = $10
 __ = $FF		
+;LevelSelect_Text: ; loc_3D7C: ; Level Select Menu Text		 
 LevelSelect_Text: ; loc_3D7C: ; Level Select Menu Text		 
-                dc.b    _G,_R,_E,_E,_N,__,_H,_I,_L,_L,__,_Z,_O,_N,_E,__,__,_S,_T,_A,_G,_E,__,_1
-                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
-                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
-                dc.b    _C,_H,_E,_M,_I,_C,_A,_L,__,_P,_L,_A,_N,_T,__,__,__,_S,_T,_A,_G,_E,__,_1
-                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
-                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
-                dc.b    _H,_I,_D,_D,_E,_N,__,_P,_A,_L,_A,_C,_E,__,__,__,__,_S,_T,_A,_G,_E,__,_1
-                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
-                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
-                dc.b    _M,_E,_T,_R,_O,_P,_O,_L,_I,_S,__,_Z,_O,_N,_E,__,__,_S,_T,_A,_G,_E,__,_1
-                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
-                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
-                dc.b    _E,_M,_E,_R,_A,_L,_D,__,_H,_I,_L,_L,__,_Z,_O,_N,_E,_S,_T,_A,_G,_E,__,_1
-                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
-                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
-                dc.b    _H,_I,_L,_L,__,_T,_O,_P,__,_Z,_O,_N,_E,__,__,__,__,_S,_T,_A,_G,_E,__,_1
-                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
-                dc.b    _W,_O,_O,_D,__,_Z,_O,_N,_E,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1
-				dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
-				dc.b    _D,_U,_S,_T,__,_H,_I,_L,_L,__,_Z,_O,_N,_E,__,__,__,_S,_T,_A,_G,_E,__,_1
-				dc.b	__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2;_F,_I,_N,_A,_L,__,_Z,_O,_N,_E,__,__,__,__,__,__,__,__,__,__,__,__,__,__
-				dc.b    _S,_P,_E,_C,_I,_A,_L,__,_S,_T,_A,_G,_E,__,__,__,__,__,__,__,__,__,__,__
-				dc.b    _S,_O,_U,_N,_D,__,_S,_E,_L,_E,_C,_T,__,__,__,__,__,__,__,__,__,__,__,__
+		dc.b    _G,_R,_E,_E,_N,__,_H,_I,_L,_L,__,_Z,_O,_N,_E,__,__,__,__,__,_S,_T,_A,_G,_E,__,_0  
+		dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1  
+		dc.b    _W,_O,_O,_D,__,_Z,_O,_N,_E,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_0  
+		dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1 
+		dc.b    _M,_E,_T,_R,_O,_P,_O,_L,_I,_S,__,_Z,_O,_N,_E,__,__,__,__,__,_S,_T,_A,_G,_E,__,_0  
+		dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1  
+		dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2     
+		dc.b    _H,_I,_L,_L,__,_T,_O,_P,__,_Z,_O,_N,_E,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_0 
+		dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1
+		dc.b    _H,_I,_D,_D,_E,_N,__,_P,_A,_L,_A,_C,_E,__,_Z,_O,_N,_E,__,__,_S,_T,_A,_G,_E,__,_0 
+		dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1
+		dc.b    _O,_I,_L,__,_O,_C,_E,_A,_N,__,_Z,_O,_N,_E,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_0 
+		dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1 
+		dc.b    _D,_U,_S,_T,__,_H,_I,_L,_L,__,_Z,_O,_N,_E,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_0 
+		dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1		  
+		dc.b    _C,_A,_S,_I,_N,_O,__,_N,_I,_G,_H,_T,__,_Z,_O,_N,_E,__,__,__,_S,_T,_A,_G,_E,__,_0 
+		dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1 
+		dc.b    _C,_H,_E,_M,_I,_C,_A,_L,__,_P,_L,_A,_N,_T,__,_Z,_O,_N,_E,__,_S,_T,_A,_G,_E,__,_0 
+		dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1 
+		dc.b    _S,_A,_N,_D,__,_S,_H,_O,_W,_E,_R,__,_Z,_O,_N,_E,__,__,__,__,_S,_T,_A,_G,_E,__,_0 ;_G,_E,_N,_O,_C,_I,_D,_E,__,_C,_I,_T,_Y,__,_Z,_O,_N,_E,__,__,_S,_T,_A,_G,_E,__,_0 
+		dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1 
+		dc.b    _N,_E,_O,__,_G,_R,_E,_E,_N,__,_H,_I,_L,_L,__,_Z,_O,_N,_E,__,_S,_T,_A,_G,_E,__,_0  
+		dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1  
+		dc.b    _D,_E,_A,_T,_H,__,_E,_G,_G,__,_Z,_O,_N,_E,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_0  
+		dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1  
+		dc.b    _S,_P,_E,_C,_I,_A,_L,__,_S,_T,_A,_G,_E,__,__,__,__,__,__,__,__,__,__,__,__,__,__
+		dc.b    _S,_O,_U,_N,_D,__,_S,_E,_L,_E,_C,_T,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__
+;                dc.b    _G,_R,_E,_E,_N,__,_H,_I,_L,_L,__,_Z,_O,_N,_E,__,__,_S,_T,_A,_G,_E,__,_1
+ ;               dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+  ;              dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
+   ;             dc.b    _C,_H,_E,_M,_I,_C,_A,_L,__,_P,_L,_A,_N,_T,__,__,__,_S,_T,_A,_G,_E,__,_1
+    ;            dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+;                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
+     ;           dc.b    _H,_I,_D,_D,_E,_N,__,_P,_A,_L,_A,_C,_E,__,__,__,__,_S,_T,_A,_G,_E,__,_1
+;                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+;                dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
+;                dc.b    _M,_E,_T,_R,_O,_P,_O,_L,_I,_S,__,_Z,_O,_N,_E,__,__,_S,_T,_A,_G,_E,__,_1
+ ;               dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+  ;              dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
+   ;             dc.b    _E,_M,_E,_R,_A,_L,_D,__,_H,_I,_L,_L,__,_Z,_O,_N,_E,_S,_T,_A,_G,_E,__,_1
+    ;            dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+;    ;            dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_3
+;                dc.b    _H,_I,_L,_L,__,_T,_O,_P,__,_Z,_O,_N,_E,__,__,__,__,_S,_T,_A,_G,_E,__,_1
+ ;               dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+  ;              dc.b    _W,_O,_O,_D,__,_Z,_O,_N,_E,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_1
+	;			dc.b    __,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+	;			dc.b    _D,_U,_S,_T,__,_H,_I,_L,_L,__,_Z,_O,_N,_E,__,__,__,_S,_T,_A,_G,_E,__,_1
+	;			dc.b	__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2;_F,_I,_N,_A,_L,__,_Z,_O,_N,_E,__,__,__,__,__,__,__,__,__,__,__,__,__,__
+	;			dc.b    _C,_A,_S,_I,_N,_O,__,_N,_I,_G,_H,_T,__,_Z,_O,_N,_E,_S,_T,_A,_G,_E,__,_1
+	;			dc.b	__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+	;			dc.b	_O,_I,_L,__,_O,_C,_E,_A,_N,__,_Z,_O,_N,_E,__,__,__,_S,_T,_A,_G,_E,__,_1
+	;			dc.b	__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,_S,_T,_A,_G,_E,__,_2
+	;			dc.b    _S,_P,_E,_C,_I,_A,_L,__,_S,_T,_A,_G,_E,__,__,__,__,__,__,__,__,__,__,__
+	;			dc.b    _S,_O,_U,_N,_D,__,_S,_E,_L,_E,_C,_T,__,__,__,__,__,__,__,__,__,__,__,__
 ;
 ;		dc.b    $00 ; Filler
 ; ===========================================================================;	incbin	"mappings/misc/Level select text.bin"
@@ -4202,7 +4364,7 @@ MusicList:	dc.b bgm_GHZ
 		dc.b bgm_SYZ
 		dc.b bgm_SBZ
 ;		dc.b bgm_GHZ
-		dc.b $8D
+		dc.b $80;$8D
 		dc.b 0
 ; ===========================================================================
 ; ---------------------------------------------------------------------------
@@ -4290,11 +4452,29 @@ loc_3BF0:
 loc_3C00:
 		move.l	d0,(a1)+
 		dbf	d1,loc_3C00
+		cmpi.w	#$201,(Current_Zone).w
+		beq.s	lc_3C1A
+		cmpi.b	#$A,(Current_Zone).w
+		beq.s	lc_3C1A
 		cmpi.b	#4,(Current_Zone).w
 		bne.s	loc_3C1A
+;		cmpi.b	#2,(Current_Zone).w
+;		bne.s	loc_3C1A
+;		cmpi.b	#$A,(Current_Zone).w
+;		bne.s	loc_3C1A
+;		cmpi.b	#4,(Current_Zone).w
+		
+;		bne.s	loc_3C1A
+;		cmpi.b	#2,(Current_Zone).w
+;		bne.s	loc_3C1A
+;		cmpi.b	#$A,(Current_Zone).w
+;		bne.s	loc_3C1A
+;		move.b	#1,(Water_flag).w
+;		move.w	#0,(Two_player_mode).w
+
+lc_3C1A:
 		move.b	#1,(Water_flag).w
 		move.w	#0,(Two_player_mode).w
-
 loc_3C1A:
 		lea	(vdp_control_port).l,a6
 		move.w	#$8B03,(a6)
@@ -4319,7 +4499,11 @@ loc_3C56:
 		move.w	#$8014,(a6)
 		moveq	#0,d0
 		move.b	(Current_Act).w,d0
-		add.w	d0,d0
+;		subi.w	#$200,d0;#hidden_palace_zone_act_1,d0;CPZ2
+;		add.w	d0,d0
+		ror.b	#1,d0
+		lsr.w	#6,d0
+		andi.w	#$FFFE,d0
 		lea	(WaterHeight).l,a1
 		move.w	(a1,d0.w),d0
 		move.w	d0,($FFFFF646).w
@@ -4330,17 +4514,27 @@ loc_3C56:
 		move.b	#1,($FFFFF64C).w
 
 LevelInit_NoWater:
+Level_LoadPal:
 		move.w	#$1E,($FFFFFE14).w
 		moveq	#3,d0
 		bsr.w	PalLoad2
 		tst.b	(Water_flag).w
 		beq.s	loc_3CC6
-		moveq	#$F,d0
-		cmpi.b	#3,(Current_Act).w
-		bne.s	loc_3CB6
-		moveq	#$10,d0
-
+		
+		moveq	#$F,d0		; use HPZ underwater palette
+		cmpi.b	#$4,(Current_Zone).w;#hidden_palace_zone,(Current_Zone).w	; is this Hidden Palace Zone?
+		beq.s	Level_WaterPal		; if yes, branch
+		moveq	#$18,d0		; use CPZ underwater sonik palette
+		cmpi.b	#$2,(Current_Zone).w;#chemical_plant_zone,(Current_Zone).w	; if this Chemical Plant Zone?
+		beq.s	Level_WaterPal		; if yes, branch
+		moveq	#$19,d0	; use NGHZ underwater sonik palette
+;		moveq	#$F,d0
+;		cmpi.b	#3,(Current_Act).w
+;		bne.s	loc_3CB6
+;		moveq	#$10,d0
+;
 loc_3CB6:
+Level_WaterPal:
 		bsr.w	PalLoad3_Water
 		tst.b	($FFFFFE30).w
 		beq.s	loc_3CC6
@@ -4392,7 +4586,16 @@ loc_3D2A:
 		jsr	(ApplySonic1Collision).l
 		bsr.w	LoadCollisionIndexes
 		bsr.w	WaterEffects
-		move.b	#1,($FFFFB000).w
+		cmpi.b	#$01, ($FFFFFFF9).w	; is the multiple character flag set to $01 (Metal Sonic)?
+		bne.s	SonicLoadObj		; if not, load Sonic's art
+		move.b	#1,($FFFFB000).w;lea	(Art_MetalSonic).l,a1	; load Metal Sonic's art
+		bra.s	ContLoadLovl		; branch to rest of code
+
+SonicLoadObj:
+		move.b	#1,($FFFFB000).w;lea	(Art_Sonic).l, a1	; load Sonic's art
+
+ContLoadLovl:
+;		move.b	#1,($FFFFB000).w;move.b	#1,($FFFFB000).w
 		tst.w	($FFFFFFF0).w
 		bmi.s	loc_3D6C
 		move.b	#$21,($FFFFB380).w
@@ -4404,6 +4607,15 @@ loc_3D6C:
 ;		beq.s	LevelInit_SkipTails ; funny how	they skipped Tails in EHZ for the Nick Arcade show
 
 LevelInit_LoadTails:
+		cmpi.b	#$01, ($FFFFFFF9).w	; is the multiple character flag set to $01 (Metal Sonic)?
+		bne.s	SonicLoadTail		; if not, load Sonic's art
+;		lea	(Art_MetalSonic).l,a1	; load Metal Sonic's art
+		bra.s	ContLoadLevel		; branch to rest of code
+
+SonicLoadTail:
+;		lea	(Art_Sonic).l, a1	; load Sonic's art
+
+
 		move.b	#2,($FFFFB040).w
 		move.w	($FFFFB008).w,($FFFFB048).w
 		move.w	($FFFFB00C).w,($FFFFB04C).w
@@ -4412,20 +4624,24 @@ LevelInit_LoadTails:
 LevelInit_SkipTails:
 		tst.b	($FFFFFFE2).w
 		beq.s	loc_3DA6
-		btst	#6,($FFFFF604).w
-		beq.s	loc_3DA6
+;		btst	#6,($FFFFF604).w
+;		beq.s	loc_3DA6
 		move.b	#1,(Debug_mode_flag).w
 
 loc_3DA6:
+ContLoadLevel:
 		move.w	#0,($FFFFF602).w
 		move.w	#0,($FFFFF604).w
 		tst.b	(Water_flag).w
-		beq.s	loc_3DD0
+		beq.s	loc_43E6;loc_3DD0
 		move.b	#4,($FFFFB780).w
 		move.w	#$60,($FFFFB788).w
 		move.b	#4,($FFFFB7C0).w
 		move.w	#$120,($FFFFB7C8).w
-
+loc_43E6:
+		cmpi.b  #9, (Current_Zone).w;#oil_ocean_zone, (Current_Zone).w
+		bne.s   loc_3DD0
+		move.b  #$07, ($FFFFB780).w
 loc_3DD0:
 		jsr	(ObjectsManager).l
 		jsr	(RingsManager).l
@@ -4463,8 +4679,8 @@ loc_3E00:
 		movea.l	(a1,d0.w),a1
 		tst.w	($FFFFFFF0).w
 		bpl.s	loc_3E78
-		lea	(Demo_S1EndIndex).l,a1 ; garbage, leftover from	Sonic 1's ending sequence demos
-		move.w	($FFFFFFF4).w,d0
+;		lea	(Demo_S1EndIndex).l,a1 ; garbage, leftover from	Sonic 1's ending sequence demos
+;		move.w	($FFFFFFF4).w,d0
 		subq.w	#1,d0
 		lsl.w	#2,d0
 		movea.l	(a1,d0.w),a1
@@ -4486,10 +4702,17 @@ loc_3E78:
 loc_3EB2:
 		tst.b	(Water_flag).w
 		beq.s	loc_3EC8
-		moveq	#$B,d0
-		cmpi.b	#3,(Current_Act).w
-		bne.s	loc_3EC4
-		moveq	#$D,d0
+		moveq   #$B, D0;#PalID_HPZ_U, D0
+		cmpi.b  #4, (Current_Zone).w;#hidden_palace_zone, (Current_Zone).w
+		beq.s   loc_3EC4;loc_44EE
+		moveq   #$19, D0;#PalID_CPZ_U, D0
+		cmpi.b  #2, (Current_Zone).w;#chemical_plant_zone, (Current_Zone).w
+		beq.s   loc_3EC4;loc_44EE
+		moveq   #$18, D0;#PalID_NGHZ_U, D0
+;		moveq	#$B,d0
+;		cmpi.b	#3,(Current_Act).w
+;		bne.s	loc_3EC4
+;		moveq	#$D,d0
 
 loc_3EC4:
 		bsr.w	PalLoad4_Water
@@ -4643,8 +4866,12 @@ loc_4058:				; CODE XREF: WaterEffects+Aj
 					; WaterEffects+12j
 		clr.b	(Water_fullscreen_flag).w
 		moveq	#0,d0
+		cmpi.b	#$A,(Current_Zone).w	; is this NGHZ?
+		beq.s	loc_4686		; if yes, branch
 		move.b	($FFFFFE60).w,d0
 		lsr.w	#1,d0
+		
+loc_4686:
 		add.w	($FFFFF648).w,d0
 		move.w	d0,($FFFFF646).w
 		move.w	($FFFFF646).w,d0
@@ -4669,7 +4896,27 @@ locret_4094:				; CODE XREF: WaterEffects+4j
 ; End of function WaterEffects
 
 ; ---------------------------------------------------------------------------
-WaterHeight:	dc.w  $600, $328, $900,	$228; 0	; DATA XREF: ROM:00003C74o
+WaterHeight:
+			dc.w  $600, $710;, $900, $228;CPZ
+			dc.w  $600, $328;hpz
+			dc.w  $600, $600;ehz
+			dc.w  $600, $600;htz
+			dc.w  $600, $600;wz
+			dc.w  $600, $600;dhz
+			dc.w  $600, $600;cnz
+			dc.w  $600, $600;OOZ
+			dc.w  $410, $510;NGHZ
+;	dc.w  $600, $600, $600, $600;GHZ
+;				dc.w  $600, $710, $900, $228;CPZ
+;				dc.w  $600, $710, $900, $228;MTZ
+;				dc.w  $600, $328, $900,	$228; 0	; DATA XREF: ROM:00003C74o;HPZ
+;				dc.w  $600, $710, $600, $600;EHZ?
+;				dc.w  $600, $710, $600, $600;HTZ
+;				dc.w  $600, $710, $600, $600;wz
+;				dc.w  $600, $710, $600, $600;dhz
+;				dc.w  $600, $710, $600, $600;cnz
+;				dc.w  $600, $600, $600, $600;ooz?
+;				dc.w  $410, $510, $600, $600
 
 ; =============== S U B	R O U T	I N E =======================================
 
@@ -4712,11 +4959,14 @@ DynWater_HPZ1:				; DATA XREF: ROM:DynWater_Indexo
 
 loc_40E2:				; CODE XREF: ROM:000040D6j
 					; ROM:000040DCj
-		btst	#1,($FFFFF606).w
-		beq.s	locret_40F6
-		cmpi.w	#$700,($FFFFF64A).w
-		beq.s	locret_40F6
-		addq.w	#1,($FFFFF64A).w
+;		btst	#1,($FFFFF606).w
+;		beq.s	locret_40F6
+;		cmpi.w	#$176A,($FFFFEE00).w;cmpi.w	#$700,($FFFFF64A).w
+;		beq.s	locret_40F6
+		move.w	($FFFFEE00).w,d0
+		cmpi.w	#$176A,d0
+		bcs.s	locret_40F6
+		move.w	#$0000,($FFFFF64A).w;addq.w	#1,($FFFFF64A).w
 
 locret_40F6:				; CODE XREF: ROM:000040E8j
 					; ROM:000040F0j
@@ -5062,8 +5312,8 @@ loc_4430:				; CODE XREF: ROM:00004428j
 locret_4454:				; CODE XREF: ROM:00004448j
 		rts
 ; ---------------------------------------------------------------------------
-byte_4456:	dc.b  $A,$F5, $A,$F6,$F5,$F4, $B,  0,  2,  7,  3,$4C,$4B,  8,  4; 0
-byte_4465:	dc.b 0			; DATA XREF: ROM:000043F2t
+byte_4456:dc.b $60,$61,$62,$63,$64,$72,$73;	dc.b  $A,$F5, $A,$F6,$F5,$F4, $B,  0,  2,  7,  3,$4C,$4B,  8,  4; 0
+byte_4465:dc.b  10, 10, 10, 10, 10, 10, 10;	dc.b 0			; DATA XREF: ROM:000043F2t
 
 ; =============== S U B	R O U T	I N E =======================================
 
@@ -5260,7 +5510,11 @@ ColP_Index:	dc.l ColP_GHZ		; 0
 		dc.l ColP_HPZ		; 4
 		dc.l ColP_EHZ		; 5
 		dc.l ColP_WZ
-		dc.l ColP_WZ
+		dc.l ColP_DHZ
+		dc.l ColP_CNZ
+		dc.l ColP_OOZ
+		dc.l ColP_NGHZ
+		dc.l ColP_SSZ
 ; ---------------------------------------------------------------------------
 ; Pointers to secondary collision indexes
 
@@ -5275,7 +5529,11 @@ ColS_Index:	dc.l ColS_GHZ		; 0
 		dc.l ColS_HPZ		; 4
 		dc.l ColS_EHZ		; 5
 		dc.l ColS_WZ
-		dc.l ColS_WZ
+		dc.l ColS_DHZ
+		dc.l ColS_CNZ
+		dc.l ColS_OOZ
+		dc.l ColS_NGHZ
+		dc.l ColS_SSZ
 ; =============== S U B	R O U T	I N E =======================================
 
 
@@ -5680,8 +5938,8 @@ loc_50CC:
 		move.w	#$708,(Demo_Time_left).w
 		tst.b	($FFFFFFE2).w
 		beq.s	loc_5158
-		btst	#6,($FFFFF604).w
-		beq.s	loc_5158
+;		btst	#6,($FFFFF604).w
+;		beq.s	loc_5158
 		move.b	#1,(Debug_mode_flag).w
 
 loc_5158:
@@ -6132,7 +6390,7 @@ LevelSizeArray:
 		dc.w	 0,  $2940,     0,	$420		; EHZ2
 		dc.w	 0,  $25C0,     0,	$720		; EHZ3
 		dc.w	 0,  $3FFF,     0,	$720		; EHZ4
-		dc.w	 0,  $3FFF,     0,	$720		; HPZ1
+		dc.w	 0,  $3FFF, -$100,	$720		; HPZ1
 		dc.w	 0,  $3FFF,     0,	$720		; HPZ2
 		dc.w	 0,  $3FFF,     0,	$720		; HPZ3
 		dc.w	 0,  $3FFF,     0,	$720		; HPZ4
@@ -6144,10 +6402,26 @@ LevelSizeArray:
 		dc.w	 0,  $DC0,   $110,	$110		; S1 Ending 2
 		dc.w	 0,  $2FFF,     0,	$320		; S1 Ending 3
 		dc.w	 0,  $2FFF,     0,	$320		; S1 Ending 4
-		dc.w	 0,  $29A0,     0,	$320		; EHZ1
-		dc.w	 0,  $2940,     0,	$420		; EHZ2
+		dc.w	 0,  $2380,  $3C0,	$720		; DHZ1
+		dc.w	 0,  $2180,   $60,	$720		; DHZ2
+		dc.w	 0,  $25C0,     0,	$720		; DHZ3
+		dc.w	 0,  $3FFF,     0,	$720		; DHZ4
+		dc.w	 0,  $3FFF,     0,	$720		; CNZ1
+		dc.w	 0,  $3FFF,     0,	$720		; CNZ2
+		dc.w	 0,  $25C0,     0,	$720		; CNZ3
+		dc.w	 0,  $3FFF,     0,	$720		; CNZ4
+		dc.w	 0,  $2F80,     0,	$680		; OOZ1
+		dc.w	 0,  $2940,     0,	$420		; OOZ2
+		dc.w	 0,  $25C0,     0,	$720		; OOZ3
+		dc.w	 0,  $3FFF,     0,	$720		; OOZ4
+		dc.w	 0,  $28C0,  $0200,	$03A0		; NGHZ1
+		dc.w	 0,  $26C0,  $180,	$5A0		; NGHZ2
 		dc.w	 0,  $25C0,     0,	$720		; EHZ3
 		dc.w	 0,  $3FFF,     0,	$720		; EHZ4
+		dc.w	 0,  $3FFF,     0,	$720		; SSZ1
+		dc.w	 0,  $2180,   $60,	$720		; SSZ2
+		dc.w	 0,  $25C0,     0,	$720		; SSZ3
+		dc.w	 0,  $3FFF,     0,	$720		; SSZ4
 ; ===========================================================================
 S1EndingStartLoc:dc.w	$50, $3B0, $EA0, $46C,$1750,  $BD, $A00, $62C
 		dc.w  $BB0,  $4C,$1570,	$16C, $1B0, $72C,$1400,	$2AC
@@ -6242,8 +6516,24 @@ StartLocArray:	dc.w   $50, $3B0		; GHZ1
 		dc.w  $EE0, $16C		; S1 Ending 2
 		dc.w   $80,  $A8		; S1 Ending 3
 		dc.w   $80,  $A8		; S1 Ending 4
-		incbin	"startpos/WZ_1.bin";dc.w  $620, $16B		; S1 Ending 1
-		dc.w  $EE0, $16C		; S1 Ending 2
+		incbin	"startpos/DHZ_1.bin";dc.w  $620, $16B		; S1 Ending 1
+		incbin	"startpos/DHZ_2.bin";dc.w  $EE0, $16C		; S1 Ending 2
+		dc.w   $80,  $A8		; S1 Ending 3
+		dc.w   $80,  $A8		; S1 Ending 4
+		incbin	"startpos/CNZ_1.bin";dc.w  $620, $16B		; S1 Ending 1
+		incbin	"startpos/CNZ_2.bin";dc.w  $EE0, $16C		; S1 Ending 2
+		dc.w   $80,  $A8		; S1 Ending 3
+		dc.w   $80,  $A8		; S1 Ending 4
+		incbin	"startpos/OOZ_1.bin";dc.w  $620, $16B		; S1 Ending 1
+		incbin	"startpos/OOZ_2.bin";dc.w  $EE0, $16C		; S1 Ending 2
+		dc.w   $80,  $A8		; S1 Ending 3
+		dc.w   $80,  $A8		; S1 Ending 4
+		incbin	"startpos/NGHZ_1.bin";dc.w  $620, $16B		; S1 Ending 1
+		incbin	"startpos/NGHZ_2.bin";dc.w  $EE0, $16C		; S1 Ending 2
+		dc.w   $80,  $A8		; S1 Ending 3
+		dc.w   $80,  $A8		; S1 Ending 4
+		incbin	"startpos/SSZ_1.bin";dc.w  $620, $16B		; S1 Ending 1
+		incbin	"startpos/SSZ_2.bin";dc.w  $EE0, $16C		; S1 Ending 2
 		dc.w   $80,  $A8		; S1 Ending 3
 		dc.w   $80,  $A8		; S1 Ending 4
 ; =============== S U B	R O U T	I N E =======================================
@@ -6280,7 +6570,11 @@ BgScroll_Index:	dc.w BgScroll_GHZ-BgScroll_Index; 0 ; DATA XREF: ROM:BgScroll_In
 		dc.w BgScroll_HPZ-BgScroll_Index; 4
 		dc.w BgScroll_EHZ-BgScroll_Index; 5
 		dc.w BgScroll_S1Ending-BgScroll_Index; 6
-		dc.w BgScroll_LZ-BgScroll_Index; 7
+		dc.w BgScroll_CPZ-BgScroll_Index; 7
+		dc.w BgScroll_CPZ-BgScroll_Index; 8
+		dc.w BgScroll_CPZ-BgScroll_Index; 9
+		dc.w BgScroll_CPZ-BgScroll_Index; A
+		dc.w BgScroll_CPZ-BgScroll_Index; B
 ; ---------------------------------------------------------------------------
 
 BgScroll_GHZ:				; DATA XREF: ROM:BgScroll_Indexo
@@ -6429,12 +6723,16 @@ loc_5B2A:				; CODE XREF: DeformBGLayer+5Cj
 Deform_Index:	dc.w Deform_GHZ-Deform_Index; 0	; DATA XREF: ROM:Deform_Indexo
 					; ROM:Deform_Index+2o ...
 		dc.w Deform_CPZ-Deform_Index;LZ-Deform_Index; 1
-		dc.w Deform_Unk-Deform_Index;Deform_CPZ-Deform_Index; 2
+		dc.w Deform_CPZ-Deform_Index;Deform_CPZ-Deform_Index; 2
 		dc.w Deform_EHZ-Deform_Index; 3
 		dc.w Deform_HPZ-Deform_Index; 4
 		dc.w Deform_HTZ-Deform_Index; 5
 		dc.w Deform_Unk-Deform_Index;Deform_GHZ-Deform_Index; 6
-		dc.w Deform_CPZ-Deform_Index;Deform_CPZ-Deform_Index
+		dc.w Deform_CPZ-Deform_Index;Deform_CPZ-Deform_Index; 7
+		dc.w Deform_CPZ-Deform_Index; 8
+		dc.w Deform_CPZ-Deform_Index; 9
+		dc.w Deform_CPZ-Deform_Index; A
+		dc.w Deform_LZ-Deform_Index; B
 ; ---------------------------------------------------------------------------
 
 Deform_GHZ:				; DATA XREF: ROM:Deform_Indexo
@@ -9159,6 +9457,14 @@ loc_72F4:				; CODE XREF: MainLevelLoadBlock+58j
 		beq.s	loc_7338
 		cmpi.b	#7,(Current_Zone).w
 		beq.s	loc_7338
+		cmpi.b	#8,(Current_Zone).w
+		beq.s	loc_7338
+		cmpi.b	#9,(Current_Zone).w
+		beq.s	loc_7338
+		cmpi.b	#$A,(Current_Zone).w
+		beq.s	loc_7338
+		cmpi.b	#$B,(Current_Zone).w
+		beq.s	loc_7338
 		move.l	a2,-(sp)
 		moveq	#0,d1
 		moveq	#0,d2
@@ -9484,7 +9790,12 @@ DynResize_Index:dc.w DynResize_GHZ-DynResize_Index; 0 ;	DATA XREF: ROM:DynResize
 		dc.w DynResize_HPZ-DynResize_Index; 4
 		dc.w DynResize_HTZ-DynResize_Index; 5
 		dc.w DynResize_S1Ending-DynResize_Index; 6
-		dc.w Resize_ABZ-DynResize_Index; 6;DynResize_CPZ-DynResize_Index
+		dc.w DynResize_CPZ-DynResize_Index; 6;DynResize_CPZ-DynResize_Index
+		dc.w DynResize_CPZ-DynResize_Index; 7
+		dc.w DynResize_CPZ-DynResize_Index; 8
+		dc.w DynResize_CPZ-DynResize_Index; 9
+		dc.w DynResize_CPZ-DynResize_Index; A
+		dc.w DynResize_CPZ-DynResize_Index; B
 ; ---------------------------------------------------------------------------
 
 DynResize_GHZ:				; DATA XREF: ROM:DynResize_Indexo
@@ -10504,6 +10815,24 @@ loc_7DA0:				; CODE XREF: ROM:00007D6Cj
 
 sub_7DC0:				; CODE XREF: ROM:00007D1Ep
 					; ROM:00007DB4p
+		cmpi.b	#$01, ($FFFFFFF9).w	; is the multiple character flag set to $01 (Metal Sonic)?
+		bne.s	SonicArLoad		; if not, load Sonic's art
+;		lea	(Art_MetalSonic).l,a1	; load Metal Sonic's art
+		lea	($FFFFB000).w,a1
+		moveq	#4,d6
+		moveq	#$3B,d5	; ';'
+		movem.l	d1-d4,-(sp)
+		bsr.s	sub_7DDA
+		movem.l	(sp)+,d1-d4
+		lea	($FFFFB040).w,a1
+		subq.b	#1,d6
+		moveq	#$3F,d5	; '?'
+		bra.s	ContLoadShit		; branch to rest of code
+
+SonicArLoad:
+;		lea	(Art_Sonic).l, a1	; load Sonic's art
+
+
 		lea	($FFFFB040).w,a1
 		moveq	#4,d6
 		moveq	#$3B,d5	; ';'
@@ -10520,6 +10849,7 @@ sub_7DC0:				; CODE XREF: ROM:00007D1Ep
 
 
 sub_7DDA:				; CODE XREF: sub_7DC0+Cp
+ContLoadShit:
 		btst	d6,$22(a0)
 		beq.s	loc_7E3E
 		btst	#1,$22(a1)
@@ -13926,7 +14256,7 @@ loc_A956:				; CODE XREF: ROM:0000A94Cj
 		tst.w	d4
 		bmi.s	loc_A9CE
 		move.w	d4,d0
-		bsr.w	CalcSine
+		bsr.w	J_CalcSine
 		move.w	d4,d2
 		lsr.w	#8,d2
 		asl.w	d2,d0
@@ -14000,6 +14330,8 @@ loc_AA6E:				; CODE XREF: ROM:0000AA38j
 					; DATA XREF: ...
 		bra.w	DeleteObject
 ; ---------------------------------------------------------------------------
+J_CalcSine:
+		jmp	CalcSine
 ;----------------------------------------------------
 ; Sonic	1 Object 4B - leftover giant ring code
 ;----------------------------------------------------
@@ -15057,9 +15389,14 @@ Obj34_CheckLZ4:				; DATA XREF: ROM:Obj34_Indexo
 Obj34_CheckFZ:				; CODE XREF: ROM:0000B8ECj
 		move.w	d0,d2
 		cmpi.w	#$502,(Current_ZoneAndAct).w
-		bne.s	Obj34_CheckConfig
+		bne.s	Obj34_CheckNew;Obj34_CheckConfig
 		moveq	#6,d0
 		moveq	#$B,d2
+		
+Obj34_CheckNew:
+		cmpi.b	#7,($FFFFFE10).w ; check if level is in the new zones
+		blo.s	Obj34_CheckConfig;Obj34_LoadConfig
+		addq.b	#$C-7,d2	; use correct mappings
 
 Obj34_CheckConfig:			; CODE XREF: ROM:0000B8F8j
 		lea	(Obj34_Config).l,a3
@@ -15183,7 +15520,7 @@ Obj34_ItemData:	dc.w $D0		; DATA XREF: ROM:0000B908o
 		dc.b   2,  7		; 0
 		dc.w $E0
 		dc.b   2, $A		; 0
-Obj34_Config:	dc.w	 0, $120,$FEFC,	$13C, $414, $154, $214,	$154; 0
+Obj34_Config:	dc.w	 0, $120,$FEFC,	$13C, $414, $154, $214,	$154; 0;Every zone added needs data here or the title card will just infinitely move left and never stop softlocking you
 					; DATA XREF: ROM:Obj34_CheckConfigo
 		dc.w	 0, $120,$FEF4,	$134, $40C, $14C, $20C,	$14C; 8
 		dc.w	 0, $120,$FEE0,	$120, $3F8, $138, $1F8,	$138; 16
@@ -15192,6 +15529,10 @@ Obj34_Config:	dc.w	 0, $120,$FEFC,	$13C, $414, $154, $214,	$154; 0
 		dc.w	 0, $120,$FF04,	$144, $41C, $15C, $21C,	$15C; 40
 		dc.w	 0, $120,$FEE4,	$124, $3EC, $3EC, $1EC,	$12C; 48
 		dc.w	 0, $120,$FEFC,	$13C, $414, $154, $214,	$154; 0
+		dc.w	 0, $120,$FEFC,	$13C, $414, $154, $214,	$154; 0
+		dc.w	 0, $120,$FEFC,	$13C, $414, $154, $214,	$154; 0
+		dc.w	 0, $120,$FEFC,	$13C, $414, $154, $214,	$154; 0
+		dc.w	 0, $120,$FEFC,	$13C, $414, $154, $214,	$154; 0 ssz
 ; ---------------------------------------------------------------------------
 ;----------------------------------------------------
 ; Object 39 - Game over	/ time over
@@ -15375,7 +15716,7 @@ locret_BC0E:
 ; ---------------------------------------------------------------------------
 		bra.w	DisplaySprite
 ; ===========================================================================
-; Obj3A_TimeBonus:
+Obj3A_TimeBonus:
 		bsr.w	DisplaySprite
 		move.b	#1,($FFFFF7D6).w
 		moveq	#0,d0
@@ -15724,7 +16065,7 @@ loc_BFA6:				; DATA XREF: ROM:0000BF3Eo
 loc_BFBC:				; CODE XREF: ROM:0000BFB4j
 		bra.w	DisplaySprite
 ; ---------------------------------------------------------------------------
-Map_Obj34:	dc.w word_BFD8-Map_Obj34 ; DATA	XREF: ROM:0000B948o
+Map_Obj34:	dc.w word_BFD8-Map_Obj34 ; DATA	XREF: ROM:0000B948o;Map_obj34:
 					; ROM:Map_Obj34o ...
 		dc.w word_C022-Map_Obj34
 		dc.w word_C06C-Map_Obj34
@@ -15737,44 +16078,50 @@ Map_Obj34:	dc.w word_BFD8-Map_Obj34 ; DATA	XREF: ROM:0000B948o
 		dc.w word_C1D2-Map_Obj34
 		dc.w word_C1E4-Map_Obj34
 		dc.w word_C24E-Map_Obj34
-word_BFD8:	dc.w 9			; DATA XREF: ROM:Map_Obj34o
-		dc.w $F805,  $18,   $C,$FFB4; 0
-		dc.w $F805,  $3A,  $1D,$FFC4; 4
-		dc.w $F805,  $10,    8,$FFD4; 8
-		dc.w $F805,  $10,    8,$FFE4; 12
-		dc.w $F805,  $2E,  $17,$FFF4; 16
-		dc.w $F805,  $1C,   $E,	 $14; 20
-		dc.w $F801,  $20,  $10,	 $24; 24
-		dc.w $F805,  $26,  $13,	 $2C; 28
-		dc.w $F805,  $26,  $13,	 $3C; 32
-word_C022:	dc.w 9			; DATA XREF: ROM:0000BFC2o
-		dc.w $F805,  $26,  $13,$FFBC; 0
-		dc.w $F805,    0,    0,$FFCC; 4
-		dc.w $F805,    4,    2,$FFDC; 8
-		dc.w $F805,  $4A,  $25,$FFEC; 12
-		dc.w $F805,  $3A,  $1D,$FFFC; 16
-		dc.w $F801,  $20,  $10,	  $C; 20
-		dc.w $F805,  $2E,  $17,	 $14; 24
-		dc.w $F805,  $42,  $21,	 $24; 28
-		dc.w $F805,  $1C,   $E,	 $34; 32
-word_C06C:	dc.w 6			; DATA XREF: ROM:0000BFC4o
-		dc.w $F805,  $2A,  $15,$FFCF; 0
-		dc.w $F805,    0,    0,$FFE0; 4
-		dc.w $F805,  $3A,  $1D,$FFF0; 8
-		dc.w $F805,    4,    2,	   0; 12
-		dc.w $F805,  $26,  $13,	 $10; 16
-		dc.w $F805,  $10,    8,	 $20; 20
-word_C09E:	dc.w 9			; DATA XREF: ROM:0000BFC6o
-		dc.w $F805,  $3E,  $1F,$FFB4; 0
-		dc.w $F805,  $42,  $21,$FFC4; 4
-		dc.w $F805,    0,    0,$FFD4; 8
-		dc.w $F805,  $3A,  $1D,$FFE4; 12
-		dc.w $F805,  $26,  $13,	   4; 16
-		dc.w $F801,  $20,  $10,	 $14; 20
-		dc.w $F805,  $18,   $C,	 $1C; 24
-		dc.w $F805,  $1C,   $E,	 $2C; 28
-		dc.w $F805,  $42,  $21,	 $3C; 32
-word_C0E8:	dc.w $A			; DATA XREF: ROM:0000BFC8o
+		dc.w word_BFD8-Map_Obj34;dhz
+		dc.w word_BFD8-Map_Obj34;cnz
+		dc.w word_BFD8-Map_Obj34;ooz
+		dc.w word_BFD8-Map_Obj34;nghz
+		dc.w word_BFD8-Map_Obj34;ssz
+;		dc.w MCZtitcrd-Map_Obj34
+word_BFD8:	dc.w 9			; DATA XREF: ROM:Map_Obj34o;ghz
+		dc.w $F805,  $18,   $C,$FFB4; 0;g
+		dc.w $F805,  $3A,  $1D,$FFC4; 4;r
+		dc.w $F805,  $10,    8,$FFD4; 8;e
+		dc.w $F805,  $10,    8,$FFE4; 12;e
+		dc.w $F805,  $2E,  $17,$FFF4; 16;n
+		dc.w $F805,  $1C,   $E,	 $14; 20;h
+		dc.w $F801,  $20,  $10,	 $24; 24;i
+		dc.w $F805,  $26,  $13,	 $2C; 28;l
+		dc.w $F805,  $26,  $13,	 $3C; 32;l
+word_C022:	dc.w 9			; DATA XREF: ROM:0000BFC2o;lz
+		dc.w $F805,  $26,  $13,$FFBC; 0;l
+		dc.w $F805,    0,    0,$FFCC; 4;a
+		dc.w $F805,    4,    2,$FFDC; 8;b
+		dc.w $F805,  $4A,  $25,$FFEC; 12;y
+		dc.w $F805,  $3A,  $1D,$FFFC; 16;r
+		dc.w $F801,  $20,  $10,	  $C; 20;i
+		dc.w $F805,  $2E,  $17,	 $14; 24;n
+		dc.w $F805,  $42,  $21,	 $24; 28;t
+		dc.w $F805,  $1C,   $E,	 $34; 32;h
+word_C06C:	dc.w 6			; DATA XREF: ROM:0000BFC4o;mz
+		dc.w $F805,  $2A,  $15,$FFCF; 0;m
+		dc.w $F805,    0,    0,$FFE0; 4;a
+		dc.w $F805,  $3A,  $1D,$FFF0; 8;r
+		dc.w $F805,    4,    2,	   0; 12;b
+		dc.w $F805,  $26,  $13,	 $10; 16;l
+		dc.w $F805,  $10,    8,	 $20; 20;e
+word_C09E:	dc.w 9			; DATA XREF: ROM:0000BFC6o;syz
+		dc.w $F805,  $3E,  $1F,$FFB4; 0;s
+		dc.w $F805,  $42,  $21,$FFC4; 4;p
+		dc.w $F805,    0,    0,$FFD4; 8;r
+		dc.w $F805,  $3A,  $1D,$FFE4; 12;i
+		dc.w $F805,  $26,  $13,	   4; 16;n
+		dc.w $F801,  $20,  $10,	 $14; 20;g
+		dc.w $F805,  $18,   $C,	 $1C; 24;y
+		dc.w $F805,  $1C,   $E,	 $2C; 28;a
+		dc.w $F805,  $42,  $21,	 $3C; 32;r
+word_C0E8:	dc.w $A			; DATA XREF: ROM:0000BFC8o;sbz?
 		dc.w $F805,  $3E,  $1F,$FFAC; 0
 		dc.w $F805,  $36,  $1B,$FFBC; 4
 		dc.w $F805,  $3A,  $1D,$FFCC; 8
@@ -15785,7 +16132,7 @@ word_C0E8:	dc.w $A			; DATA XREF: ROM:0000BFC8o
 		dc.w $F805,    0,    0,	 $24; 28
 		dc.w $F805,  $3A,  $1D,	 $34; 32
 		dc.w $F805,   $C,    6,	 $44; 36
-word_C13A:	dc.w $A			; DATA XREF: ROM:0000BFCAo
+word_C13A:	dc.w $A			; DATA XREF: ROM:0000BFCAo;fz
 		dc.w $F805,  $3E,  $1F,$FFAC; 0
 		dc.w $F805,    8,    4,$FFBC; 4
 		dc.w $F805,  $3A,  $1D,$FFCC; 8
@@ -16506,10 +16853,10 @@ Obj_Index:
 		dc.l Obj01		; Sonic
 		dc.l Obj02		; Tails
 		dc.l Obj03		; Collision plane/layer switcher
-		dc.l Obj04		; Surface of the water
+		dc.l Obj04;Obj04 inNA		; Surface of the water
 		dc.l Obj05		; Tails' tails
 		dc.l Obj06		; Twisting spiral pathway in EHZ
-		dc.l ObjNull
+		dc.l Obj_0x07;ObjNull
 		dc.l Obj08		; Water splash in HPZ
 		dc.l Obj09		; (S1) Sonic in the Speical Stage
 		dc.l Obj0A		; Small bubbles from Sonic's face while underwater
@@ -16534,7 +16881,7 @@ Obj_Index:
 		dc.l Obj_0x1D_Worms;ObjNull
 		dc.l Obj_0x1E_Tube_Attributes;ObjNull
 		dc.l Obj1F		; (S1) Crabmeat from GHZ
-		dc.l ObjNull
+		dc.l Obj_0x20_HPZ_Platform;ObjNull
 		dc.l Obj21		; Score/Rings/Time display (HUD)
 		dc.l Obj22		; (S1) Buzz Bomber from GHZ
 		dc.l Obj23		; (S1) Buzz Bomber/Newtron missile
@@ -16546,7 +16893,7 @@ Obj_Index:
 		dc.l Obj29		; "100 points" text
 		dc.l Obj2A		; (S1) Small door from SBZ
 		dc.l Obj2B		; (S1) Chopper from GHZ
-		dc.l Obj2C		; (S1) Jaws from LZ
+		dc.l Obj_0x2C_Leaves;Obj2C		; (S1) Jaws from LZ
 		dc.l ObjNull
 		dc.l Obj2E		; Monitor contents (code for power-up behavior and rising image)
 		dc.l ObjNull
@@ -16612,11 +16959,11 @@ Obj_Index:
 		dc.l Obj_0x6B_Mz_Platform;6B
 		dc.l Obj_0x6C_Mz_Moving_Platforms;ObjNull;6C
 		dc.l Obj_0x6D_Harpoon;ObjNull;6D
-		dc.l ObjNull;6E
-		dc.l ObjNull;6F
+		dc.l Obj_0x6E_Machine;ObjNull;6E
+		dc.l ObjNull;Obj_Ox6F_Parallelogram_Elevator;ObjNull;6F
 		dc.l Obj_0x70_Rotating_Gears;ObjNull;70
 		dc.l ObjNull;71
-		dc.l ObjNull;72
+		dc.l Obj_0x72_Conveyor_Belt_Attributes;ObjNull;72
 		dc.l ObjNull;73
 		dc.l ObjNull;74
 		dc.l ObjNull;75
@@ -16624,7 +16971,7 @@ Obj_Index:
 		dc.l ObjNull;77
 		dc.l Obj_0x78_Rotating_Platforms;ObjNull
 		dc.l Obj79		; Checkpoint
-		dc.l ObjNull
+		dc.l Obj_0x7A_Platform_Horizontal;ObjNull
 		dc.l Obj_0x7B_Spring_Tubes;ObjNull
 		dc.l ObjNull
 		dc.l Obj7D		; (S1) Hidden points at end of stage
@@ -20702,6 +21049,7 @@ loc_F4DA:
 ; a1 = sonic or tails (set inside these subroutines)
 ; a2 = height data for slope
 ; ---------------------------------------------------------------------------
+loc_F59E:
 		lea	($FFFFB000).w,a1	; a1=character
 		moveq	#3,d6
 		movem.l	d1-d4,-(sp)
@@ -21147,7 +21495,7 @@ PlatformObject:
 sub_F844:				; CODE XREF: sub_F82E+Ap
 
 ; FUNCTION CHUNK AT 0000F9A0 SIZE 00000028 BYTES
-
+loc_F99A:
 		btst	d6,$22(a0)
 		beq.w	loc_F9A0
 		move.w	d1,d2
@@ -23267,6 +23615,25 @@ Obj05_Init:
 		move.b	#4,1(a0)
 
 Obj05_Main:
+		cmpi.b	#$01, ($FFFFFFF9).w	; is the multiple character flag set to $01 (Metal Sonic)?
+		bne.s	SonicLoadTails		; if not, load Sonic's art
+;		lea	(Art_MetalSonic).l,a1	; load Metal Sonic's art
+		move.b	($FFFFB026).w,$26(a0); i took 40 out of all of em and it mostly works except for the jumping rotaing tails which i think rely on another routine
+		move.b	($FFFFB022).w,$22(a0)
+		move.w	($FFFFB008).w,8(a0)
+		move.w	($FFFFB00C).w,$C(a0)
+		moveq	#0,d0
+		move.b	($FFFFB01C).w,d0
+		cmp.b	$30(a0),d0
+		beq.s	loc_11DE6
+		move.b	d0,$30(a0)
+		move.b	Obj05_Animations(pc,d0.w),$1C(a0)
+		bra.s	ContLoadAn		; branch to rest of code
+
+SonicLoadTails:
+;		lea	(Art_Sonic).l, a1	; load Sonic's art
+
+
 		move.b	($FFFFB066).w,$26(a0)
 		move.b	($FFFFB062).w,$22(a0)
 		move.w	($FFFFB048).w,8(a0)
@@ -23279,6 +23646,7 @@ Obj05_Main:
 		move.b	Obj05_Animations(pc,d0.w),$1C(a0)
 
 loc_11DE6:
+ContLoadAn:
 		lea	(Obj05_AniData).l,a1
 		bsr.w	Tails_Animate2
 		bsr.w	LoadTailsTailsDynPLC
@@ -27011,7 +27379,7 @@ Obj14:					; DATA XREF: ROM:Obj_Indexo
 		sub.w	($FFFFF7DA).w,d0
 		cmpi.w	#$280,d0
 		bhi.w	DeleteObject
-		bra.w	DisplaySprite
+		bra.w	J_DisplaySprite2
 ; ---------------------------------------------------------------------------
 Obj14_Index:	dc.w loc_14CD2-Obj14_Index ; DATA XREF:	ROM:Obj14_Indexo
 					; ROM:00014CC8o ...
@@ -27021,6 +27389,8 @@ Obj14_Index:	dc.w loc_14CD2-Obj14_Index ; DATA XREF:	ROM:Obj14_Indexo
 		dc.w loc_14E9C-Obj14_Index
 		dc.w loc_14F30-Obj14_Index
 ; ---------------------------------------------------------------------------
+J_DisplaySprite2:
+		jmp	DisplaySprite
 
 loc_14CD2:				; DATA XREF: ROM:Obj14_Indexo
 		addq.b	#2,routine(a0)
@@ -27758,6 +28128,7 @@ j_ObjectMove_1:				; CODE XREF: ROM:loc_153ECp
 ;----------------------------------------------------
 
 Obj04:					; DATA XREF: ROM:Obj_Indexo
+;		include	"SWObjects/04 Water Surface.asm"
 		moveq	#0,d0
 		move.b	routine(a0),d0
 		move.w	Obj04_Index(pc,d0.w),d1
@@ -27766,6 +28137,7 @@ Obj04:					; DATA XREF: ROM:Obj_Indexo
 Obj04_Index:	dc.w Obj04_Init-Obj04_Index ; DATA XREF: ROM:Obj04_Indexo
 					; ROM:000154E4o
 		dc.w Obj04_Main-Obj04_Index
+		dc.w Obj04_Main2-Obj04_Index
 ; ---------------------------------------------------------------------------
 
 Obj04_Init:				; DATA XREF: ROM:Obj04_Indexo
@@ -27776,6 +28148,11 @@ Obj04_Init:				; DATA XREF: ROM:Obj04_Indexo
 		move.b	#4,1(a0)
 		move.b	#$80,$19(a0)
 		move.w	8(a0),$30(a0)
+		cmpi.b	#$A,(Current_Zone).w;#neo_green_hill_zone,(Current_Zone).w
+		bne.s	Obj04_Main
+		addq.b	#2,$24(a0)	; => Obj04_Action2
+		move.l	#Obj04_MapUnc_152B2,4(a0)
+		bra.w	Obj04_Main2
 
 Obj04_Main:				; DATA XREF: ROM:000154E4o
 		move.w	($FFFFF646).w,d1
@@ -27810,6 +28187,34 @@ Obj04_FrameData:dc.b   0,  1,  0,  1,  0,  1,  0,  1,  0,  1,  0,  1,  0,  1,  0
 		dc.b   1,  2,  1,  2,  1,  2,  1,  2,  1,  2,  1,  2,  1,  2,  1,  2; 16
 		dc.b   2,  1,  2,  1,  2,  1,  2,  1,  2,  1,  2,  1,  2,  1,  2,  1; 32
 		dc.b   1,  0,  1,  0,  1,  0,  1,  0,  1,  0,  1,  0,  1,  0,  1,  0; 48
+Obj04_Main2:
+		move.w	($FFFFF646).w,d1;move.w	(Water_Level_1).w,d1
+		move.w	d1,$C(a0)
+		tst.b	$32(a0)
+		bne.s	Obj04_Animate2
+		btst	#7,($FFFFF605).w	; is the Start button pressed?
+		beq.s	loc_151A8		; if not, branch
+		addq.b	#3,$1A(a0)		; use different frames
+		move.b	#1,$32(a0)		; stop animation
+		bra.s	loc_151BE
+; ===========================================================================
+; loc_15198:
+Obj04_Animate2:
+		tst.w	($FFFFF63A).w;(Game_paused).w		; is the game paused?
+		bne.s	loc_151BE		; if yes, branch
+		move.b	#0,$32(a0)		; resume animation
+		subq.b	#3,$1A(a0)		; use normal frames
+
+loc_151A8:
+		subq.b	#1,$1E(a0)
+		bpl.s	loc_151BE
+		move.b	#5,$1E(a0)
+		addq.b	#1,$1A(a0)
+		andi.b	#1,$1A(a0)
+
+loc_151BE:
+		bra.w	loc_15868;J_DisplaySprite_00
+		
 Map_Obj04:	dc.w word_155AC-Map_Obj04 ; DATA XREF: ROM:000154EAo
 					; ROM:Map_Obj04o ...
 		dc.w word_155C6-Map_Obj04
@@ -27851,6 +28256,7 @@ word_1565E:	dc.w 6			; DATA XREF: ROM:000155AAo
 		dc.w $F80D,  $10,    8,	 $20; 16
 		dc.w $F80D,    8,    4,	 $40; 20
 ; ---------------------------------------------------------------------------
+Obj04_MapUnc_152B2:	incbin	"mappings/sprite/obj04_b.bin"
 ;----------------------------------------------------
 ; Object 49 - EHZ waterfalls
 ;----------------------------------------------------
@@ -28211,7 +28617,7 @@ Obj52_Index:	dc.w Obj52_Init-Obj52_Index ; DATA XREF: ROM:Obj52_Indexo
 Obj52_Init:				; DATA XREF: ROM:Obj52_Indexo
 		addq.b	#2,routine(a0)
 		move.l	#Map_Obj52,4(a0)
-		move.w	#$2530,2(a0)
+		move.w	#$2430,2(a0);#$2530,2(a0)
 		ori.b	#4,1(a0)
 		move.b	#$A,$20(a0)
 		move.b	#4,$18(a0)
@@ -33966,8 +34372,8 @@ loc_1A3DC:				; DATA XREF: ROM:Obj09_Indexo
 loc_1A41C:				; DATA XREF: ROM:0001A3D6o
 		tst.w	(Debug_mode_flag).w
 		beq.s	loc_1A430
-		btst	#4,($FFFFF605).w
-		beq.s	loc_1A430
+;		btst	#4,($FFFFF605).w
+;		beq.s	loc_1A430
 		move.w	#1,(Debug_placement_mode).w
 
 loc_1A430:				; CODE XREF: ROM:0001A420j
@@ -34842,12 +35248,12 @@ AnimCue_EHZ:	dc.w 4
 AnimCue_HPZ:	dc.w 2
 		dc.l Art_HPZGlowingBall+$8000000
 		dc.w $5D00
-		dc.b 6
-		dc.b 8
-		dc.b   0,  0		; 0
-		dc.b   8,$10		; 2
-		dc.b $10,  8		; 4
-		dc.l Art_HPZGlowingBall+$8000000
+		dc.b 6	;06
+		dc.b 8	;08 in acelasi nr. in sw.
+		dc.b   0,  0		; 0;00 cu 00
+		dc.b   8,$10		; 2;08 cu 10
+		dc.b $10,  8		; 4;10 cu 8
+		dc.l Art_HPZGlowingBall+$8000000;ok cre ca am inteles cum vine treaba
 		dc.w $5E00
 		dc.b 6
 		dc.b 8
@@ -34864,18 +35270,28 @@ AnimCue_HPZ:	dc.w 2
 
 ; According to leftover resizing code, this was meant for the
 ; Chemical Plant Zone boss, which symbol tables refer to as "vaccume".
-AnimCue_MTZ:	dc.w	5
-		dc.w    $6980;$0005		   ; Total of Animations
-		dc.l    ArtUnc_MTZCylinder+$8000000     ; loc_2902A  
-;		dc.w    $6980		   ; VRam
-		dc.b    6;$0810		   ; Frames/Tiles
-		dc.b    8;$0010, $2030, $4050, $6070 ; Frame Load/Frame Time
-		dc.b   0,  4		; 0
+AnimCue_MTZ:
+		dc.w    5		   ; Total of Animations
+		dc.l    ArtUnc_MTZCylinder;+$8000000     ; loc_2902A  
+		dc.w    $6980		   ; VRam
+		dc.b	8;08
+		dc.b	$10;10 = $0810
+		dc.b	0,	$10;0010
+		dc.b	$20,	$30
+		dc.b	$40,	$50
+		dc.b	$60,	$70
+;		dc.w    $0810		   ; Frames/Tiles
+;		dc.w    $0010, $2030, $4050, $6070 ; Frame Load/Frame Time
 		dc.l    ($0D<<$18)|ArtUnc_Lava      ; loc_2A02A:
 		dc.w    $6800		   ; VRam
-		dc.w    $060C		   ; Frames/Tiles
-		dc.w    $000C, $1824, $180C     ; Frame Load/Frame Time
-		dc.l    ($FF<<$18)|ArtUnc_MTZAnimBack+$8000000   ; loc_2A06A:
+		dc.b	6
+		dc.b	$C
+		dc.b	0,	$C
+		dc.b	$18,	$24
+		dc.b	$18,	$C
+;		dc.w    $060C		   ; Frames/Tiles
+;		dc.w    $000C, $1824, $180C     ; Frame Load/Frame Time
+		dc.l    ($FF<<$18)|ArtUnc_MTZAnimBack   ; loc_2A06A:
 		dc.w    $6B80		   ; VRam
 		dc.w    $0406		   ; Frames/Tiles
 		dc.w    $0013, $0607, $0C13, $0607 ; Frame Load/Frame Time
@@ -34891,6 +35307,33 @@ AnimCue_MTZ:	dc.w	5
 		dc.w    $6E00		   ; VRam
 		dc.w    $0408		   ; Frames/Tiles
 		dc.w    $0008, $1018            ; Frame Load/Frame Time
+;	dc.w	5
+;		dc.w    $6980;$0005		   ; Total of Animations
+;		dc.l    ArtUnc_MTZCylinder+$8000000     ; loc_2902A  
+;;		dc.w    $6980		   ; VRam
+;		dc.b    6;$0810		   ; Frames/Tiles
+;		dc.b    8;$0010, $2030, $4050, $6070 ; Frame Load/Frame Time
+;		dc.b   0,  4		; 0
+;		dc.l    ($0D<<$18)|ArtUnc_Lava      ; loc_2A02A:
+;		dc.w    $6800		   ; VRam
+;		dc.w    $060C		   ; Frames/Tiles
+;		dc.w    $000C, $1824, $180C     ; Frame Load/Frame Time
+;		dc.l    ($FF<<$18)|ArtUnc_MTZAnimBack+$8000000   ; loc_2A06A:
+;		dc.w    $6B80		   ; VRam
+;		dc.w    $0406		   ; Frames/Tiles
+;		dc.w    $0013, $0607, $0C13, $0607 ; Frame Load/Frame Time
+;		dc.l    ($FF<<$18)|ArtUnc_MTZAnimBack   ; loc_2A06A:
+;		dc.w    $6C40		   ; VRam
+;		dc.w    $0406		   ; Frames/Tiles
+;		dc.w    $0C13, $0607, $0013, $0607 ; Frame Load/Frame Time
+;		dc.l    ($05<<$18)|ArtUnc_Drills    ; loc_2A86A:
+;		dc.w    $6D00		   ; VRam
+;		dc.w    $0408		   ; Frames/Tiles
+;		dc.w    $0008, $1018            ; Frame Load/Frame Time
+;		dc.l    ($05<<$18)|ArtUnc_Drills    ; loc_2A86A:
+;		dc.w    $6E00		   ; VRam
+;		dc.w    $0408		   ; Frames/Tiles
+;		dc.w    $0008, $1018            ; Frame Load/Frame Time
 AnimCue_CPZ:	dc.w 7
 		dc.l Art_UnkZone_1+$7000000
 		dc.w $9000
@@ -35107,16 +35550,33 @@ APM_GHZ:	dc.w $1788,  $3B,$4502,$4504,$4503,$4505,$4506,$4508,$4507,$4509,$450A,
 		dc.w $651F,$6521,$439C,$4B9C,$439D,$4B9D,$4158,$439C,$4159,$439D,$4B9C,$4958,$4B9D,$4959,$6394,$6B94
 		dc.w $6395,$6B95,$E396,$EB96,$E397,$EB97,$6398,$6B98,$6399,$6B99,$E39A,$EB9A,$E39B,$EB9B
 
-APM_LZ:		dc.w	 0, $C80,  $9B,$43A1,$43A2,$43A3,$43A4,$43A5,$43A6,$43A7,$43A8,$43A9,$43AA,$43AB,$43AC,$43AD
-		dc.w $43AE,$43AF,$43B0,$43B1,$43B2,$43B3,$43B4,$43B5,$43B6,$43B7,$43B8,$43B9,$43BA,$43BB,$43BC,$43BD
-		dc.w $43BE,$43BF,$43C0,$43C1,$43C2,$43C3,$43C4,$63A0,$63A0,$63A0,$63A0,$63A0,$63A0,$63A0,$63A0,	   0
-		dc.w	 0,$6340,$6344,	   0,	 0,$6348,$634C,$6341,$6345,$6342,$6346,$6349,$634D,$634A,$634E,$6343
-		dc.w $6347,$4358,$4359,$634B,$634F,$435A,$435B,$6380,$6384,$6381,$6385,$6388,$638C,$6389,$638D,$6382
-		dc.w $6386,$6383,$6387,$638A,$638E,$638B,$638F,$6390,$6394,$6391,$6395,$6398,$639C,$6399,$639D,$6392
-		dc.w $6396,$6393,$6397,$639A,$639E,$639B,$639F,$4378,$4379,$437A,$437B,$437C,$437D,$437E,$437F,$235C
-		dc.w $235D,$235E,$235F,$2360,$2361,$2362,$2363,$2364,$2365,$2366,$2367,$2368,$2369,$236A,$236B,	   0
-		dc.w	 0,$636C,$636D,	   0,	 0,$636E,    0,$636F,$6370,$6371,$6372,$6373,	 0,$6374,    0,$6375
-		dc.w $6376,$4358,$4359,$6377,	 0,$435A,$435B,$C378,$C379,$C37A,$C37B,$C37C,$C37D,$C37E,$C37F
+APM_LZ:
+Map16Delta_Mz: ; loc_22A40: ; Metropolis 16x16 mappings used by dynamic reload sprites...  
+		dc.w    $1730 ; Ram Address to start loading ($1730+$FFFF9000)      -> adda.w  (A0)+, A1
+		dc.w    $0067 ; Number of words to load in Ram Array ($0000..$0067) -> move.w  (A0)+, D1
+		dc.w    $235C, $2B5C, $235D, $2B5D, $235E, $2B5E, $235F, $2B5F
+		dc.w    $635A, $635A, $635B, $635B, $6358, $6358, $6359, $6359
+		dc.w    $6356, $6356, $6357, $6357, $6354, $6354, $6355, $6355
+		dc.w    $6352, $6352, $6353, $6353, $6350, $6350, $6351, $6351
+		dc.w    $634E, $634E, $634F, $634F, $634C, $634C, $634D, $634D
+		dc.w    $2360, $2B60, $2361, $2B61, $2362, $2B62, $2363, $2B63
+		dc.w    $2364, $2B64, $2365, $2B65, $2366, $2B66, $2367, $2B67
+		dc.w    $0000, $0000, $4340, $4341, $0000, $0000, $4342, $4343
+		dc.w    $4344, $4345, $4348, $4349, $4346, $4347, $434A, $434B
+		dc.w    $E35A, $E35A, $E35B, $E35B, $E358, $E358, $E359, $E359
+		dc.w    $E356, $E356, $E357, $E357, $E354, $E354, $E355, $E355
+		dc.w    $E352, $E352, $E353, $E353, $E350, $E350, $E351, $E351
+		dc.w    $E34E, $E34E, $E34F, $E34F, $E34C, $E34C, $E34D, $E34D
+;		dc.w	 0, $C80,  $9B,$43A1,$43A2,$43A3,$43A4,$43A5,$43A6,$43A7,$43A8,$43A9,$43AA,$43AB,$43AC,$43AD
+;		dc.w $43AE,$43AF,$43B0,$43B1,$43B2,$43B3,$43B4,$43B5,$43B6,$43B7,$43B8,$43B9,$43BA,$43BB,$43BC,$43BD
+;		dc.w $43BE,$43BF,$43C0,$43C1,$43C2,$43C3,$43C4,$63A0,$63A0,$63A0,$63A0,$63A0,$63A0,$63A0,$63A0,	   0
+;		dc.w	 0,$6340,$6344,	   0,	 0,$6348,$634C,$6341,$6345,$6342,$6346,$6349,$634D,$634A,$634E,$6343
+;		dc.w $6347,$4358,$4359,$634B,$634F,$435A,$435B,$6380,$6384,$6381,$6385,$6388,$638C,$6389,$638D,$6382
+;		dc.w $6386,$6383,$6387,$638A,$638E,$638B,$638F,$6390,$6394,$6391,$6395,$6398,$639C,$6399,$639D,$6392
+;		dc.w $6396,$6393,$6397,$639A,$639E,$639B,$639F,$4378,$4379,$437A,$437B,$437C,$437D,$437E,$437F,$235C
+;		dc.w $235D,$235E,$235F,$2360,$2361,$2362,$2363,$2364,$2365,$2366,$2367,$2368,$2369,$236A,$236B,	   0
+;		dc.w	 0,$636C,$636D,	   0,	 0,$636E,    0,$636F,$6370,$6371,$6372,$6373,	 0,$6374,    0,$6375
+;		dc.w $6376,$4358,$4359,$6377,	 0,$435A,$435B,$C378,$C379,$C37A,$C37B,$C37C,$C37D,$C37E,$C37F
 
 APM_CPZ:	dc.w $17E0,   $F,$43D1,$43D1,$43D1,$43D1,$43D2,$43D2,$43D3,$43D3,$43D4,$43D4,$43D5,$43D5,$43D6,$43D6
 		dc.w $43D7,$43D7
@@ -35771,7 +36231,9 @@ loc_1B656:				; CODE XREF: HUD_Lives+64j
 ; End of function HUD_Lives
 
 ; ---------------------------------------------------------------------------
-Art_HUD:	dc.b   0,  0,  0,  0,  0,$66,$66,$10,  6,$66,$66,$61,  6,$61,$16,$61,  6,$61,  6,$61,$76,$61,$76,$61,$66,$10,$66,$10,$66,$10,$66,$10; 0
+Art_HUD:
+;		incbin	"art/nemesis/Hud.bin"
+	dc.b   0,  0,  0,  0,  0,$66,$66,$10,  6,$66,$66,$61,  6,$61,$16,$61,  6,$61,  6,$61,$76,$61,$76,$61,$66,$10,$66,$10,$66,$10,$66,$10; 0
 					; DATA XREF: HUD_Base:loc_1B3CCt
 					; HUD_Score+At	...
 		dc.b $66,$10,$66,$10,$66,$66,$66,$10,  6,$66,$61,  0,  1,$11,$10,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0; 32
@@ -35797,7 +36259,9 @@ Art_HUD:	dc.b   0,  0,  0,  0,  0,$66,$66,$10,  6,$66,$66,$61,  6,$61,$16,$61,  
 		dc.b   0,  6,$61,  0,  0,  1,$11,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0; 672
 		dc.b   0,  0,  0,  0, $C,$CC,$CC,$C1, $C,$CC,$CC,$C1, $C,$C1,$11,$11, $C,$C1,  0,  0, $C,$CC,$CC,$10,$CC,$CC,$C1,  0,$CC,$11,$11,  0; 704
 		dc.b $CC,$10,  0,  0,$CC,$CC,$CC,$10,$CC,$CC,$CC,$10,$11,$11,$11,$10,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0; 736
-Art_LivesNums:	dc.b   0,  0,  0,  0,  0,$66,$66,$10,  6,$61,$16,$61,  6,$61,  6,$61,  6,$61,  6,$61,  6,$61,  6,$61,  0,$66,$66,$10,  0,$11,$11,  0; 0
+Art_LivesNums:
+;		incbin	"art/nemesis/Hud.nem"
+	dc.b   0,  0,  0,  0,  0,$66,$66,$10,  6,$61,$16,$61,  6,$61,  6,$61,  6,$61,  6,$61,  6,$61,  6,$61,  0,$66,$66,$10,  0,$11,$11,  0; 0
 					; DATA XREF: HUD_Lives+14t
 		dc.b   0,  0,  0,  0,  0,  6,$61,  0,  0,$66,$61,  0,  0,$16,$61,  0,  0,  6,$61,  0,  0,  6,$61,  0,  0,  6,$61,  0,  0,  1,$11,  0; 32
 		dc.b   0,  0,  0,  0,  0,$66,$66,$10,  0,$11,$16,$61,  0,  0,$66,$11,  0,  6,$61,$10,  0,$66,$11,$10,  6,$66,$66,$61,  1,$11,$11,$11; 64
@@ -36063,6 +36527,10 @@ DebugList:	dc.w Debug_GHZ-DebugList
 		dc.w Debug_HTZ-DebugList
 		dc.w Debug_HPZ-DebugList
 		dc.w Debug_HPZ-DebugList
+		dc.w Debug_HPZ-DebugList
+		dc.w Debug_HPZ-DebugList
+		dc.w Debug_HPZ-DebugList
+		dc.w Debug_HPZ-DebugList
 Debug_GHZ:	dc.w $E			; DATA XREF: ROM:DebugListo
 		dc.l Map_Obj25+$25000000
 		dc.b   0,  0,$26,$BC	; subtype, frame, VRAM setting (2 bytes)
@@ -36313,7 +36781,11 @@ LevelArtPointers:
 		levartptrs $C, $D,  8, Nem_HPZ, Map16_HPZ, Map128_HPZ, bgm_SYZ		;   4 ; HPZ  ; HIDDEN PALACE ZONE
 		levartptrs $E, $F,  9, Nem_EHZ, Map16_EHZ, Map128_EHZ, bgm_SBZ		;   5 ; HTZ  ; HILL TOP ZONE
 		levartptrs $1A,$1B,$13, Nem_WZ,  Map16_WZ,  Map128_WZ,  bgm_SBZ;0,  0,$13, Nem_WZ,  Map16_WZ,  Map128_WZ,  bgm_SBZ	;   6 ; LEV6 ; LEVEL 6 (UNUSED, SONIC 1 ENDING)
-		levartptrs $1C,$1D,$14, Nem_DHZ,  Map16_DHZ,  Map128_DHZ,  bgm_GHZ
+		levartptrs $1C,$23,$14, Nem_DHZ,  Map16_DHZ,  Map128_DHZ,  bgm_GHZ
+		levartptrs $21,$21,$15, Nem_CNZ,  Map16_CNZ,  Map128_CNZ,  bgm_GHZ
+		levartptrs $1E,$23,$16, Nem_OOZ,  Map16_OOZ,  Map128_OOZ,  bgm_GHZ
+		levartptrs $1F,$22,$17, Nem_NGHZ,  Map16_NGHZ,  Map128_NGHZ,  bgm_GHZ
+		levartptrs $20,$20,$1A, Nem_SSZ,  Map16_SSZ,  Map128_SSZ,  bgm_GHZ
 ; ---------------------------------------------------------------------------
 ; PATTERN LOAD REQUEST LISTS
 ;
@@ -36338,6 +36810,14 @@ LevelArtPointers:
 ; Table of pattern load request lists. Remember to use word-length data when adding lists
 ; otherwise you'll break the array.
 ;---------------------------------------------------------------------------------------
+plreq macro toVRAMaddr,fromROMaddr
+	dc.l	fromROMaddr		; art to load
+	dc.w	(toVRAMaddr<<5)		; VRAM address to load it at (multiplied by $20)
+	endm
+PLC_SSZ:	dc.w ((PLC_SSZ_End-PLC_SSZ-$02)/6)-1
+		plreq 0, Nem_SSZ
+		plreq $300, Nem_Crocobot
+PLC_SSZ_End:
 ArtLoadCues:	dc.w PLC_Main-ArtLoadCues,PLC_Main2-ArtLoadCues
 		dc.w PLC_Explode-ArtLoadCues,PLC_GameOver-ArtLoadCues
 		dc.w PLC_GHZ-ArtLoadCues,PLC_GHZ2-ArtLoadCues
@@ -36352,14 +36832,13 @@ ArtLoadCues:	dc.w PLC_Main-ArtLoadCues,PLC_Main2-ArtLoadCues
 		dc.w PLC_LZAnimals-ArtLoadCues,PLC_CPZAnimals-ArtLoadCues;14,15
 		dc.w PLC_EHZAnimals-ArtLoadCues,PLC_HPZAnimals-ArtLoadCues;16,17
 		dc.w PLC_HTZAnimals-ArtLoadCues,PLC_WZ-ArtLoadCues;PLC_HTZAnimals-ArtLoadCues;LeftoverArt_Unknown-ArtLoadCues;18,19
-		dc.w PLC_DHZ-ArtLoadCues,PLC_MTZ2-ArtLoadCues;LeftoverArt_Unknown+2-ArtLoadCues,LeftoverArt_Unknown+4-ArtLoadCues;1A,1B
-		dc.w PLC_MTZ-ArtLoadCues,PLC_MTZ2-ArtLoadCues;LeftoverArt_Unknown+6-ArtLoadCues,LeftoverArt_Unknown+8-ArtLoadCues
-
+		dc.w PLC_DHZ-ArtLoadCues,PLC_SSZ-ArtLoadCues;LeftoverArt_Unknown+2-ArtLoadCues,LeftoverArt_Unknown+4-ArtLoadCues;1A,1B
+		dc.w PLC_OOZ-ArtLoadCues,PLC_NGHZ-ArtLoadCues;LeftoverArt_Unknown+6-ArtLoadCues,LeftoverArt_Unknown+8-ArtLoadCues
+		dc.w PLC_SSZ-ArtLoadCues;,PLC_NGHZ-ArtLoadCues
+		dc.w PLC_CNZ-ArtLoadCues,PLC_NGHZ_2-ArtLoadCues
+		dc.w PLC_OOZ_2-ArtLoadCues,PLC_DHZ_2-ArtLoadCues
+		dc.w PLC_OOZ_2-ArtLoadCues,PLC_DHZ_2-ArtLoadCues
 ; macro for a pattern load request
-plreq macro toVRAMaddr,fromROMaddr
-	dc.l	fromROMaddr		; art to load
-	dc.w	(toVRAMaddr<<5)		; VRAM address to load it at (multiplied by $20)
-	endm
 
 ; --------------------------------------------------------------------------------------
 ; PATTERN LOAD REQUEST LIST
@@ -36442,6 +36921,92 @@ PLC_WZ_End:
 PLC_DHZ:	dc.w ((PLC_DHZ_End-PLC_DHZ-$02)/6)-1
 		plreq 0, Nem_DHZ
 PLC_DHZ_End:
+PLC_CNZ:	dc.w ((PLC_CNZ_End-PLC_CNZ-$02)/6)-1
+		plreq 0, Nem_CNZ
+PLC_CNZ_End:
+PLC_OOZ:	dc.w ((PLC_OOZ_End-PLC_OOZ-$02)/6)-1
+		plreq 0, Nem_OOZ
+		dc.l    ArtNem_OOZElevator            ; loc_75F70
+		dc.w    $6000   
+		dc.l    ArtNem_SpikyThing     ; loc_76060
+		dc.w    $6180 
+		dc.l    ArtNem_BurnerLid      ; loc_76258
+		dc.w    $6580  
+		dc.l    ArtNem_StripedBlocksVert         ; loc_762EE
+		dc.w    $6640 
+		dc.l    ArtNem_Oilfall		 ; loc_7635A
+		dc.w    $66C0    
+		dc.l    ArtNem_Oilfall2           ; loc_764D6
+		dc.w    $68C0		  
+PLC_OOZ_End:
+PLC_NGHZ:	dc.w ((PLC_NGHZ_End-PLC_NGHZ-$02)/6)-1
+		plreq 0, Nem_NGHZ
+		dc.l    Nghz_Water_Surface      ; loc_78270
+		dc.w    $8000   
+		dc.l    Nghz_Leaves             ; loc_78356
+		dc.w    $8200    
+		dc.l    ArtNem_ArrowAndShooter      ; loc_783E2
+		dc.w    $82E0  
+		dc.l    Nghz_Water_Splash       ; loc_78540
+		dc.w    $8500  
+PLC_NGHZ_End:;Nem_NGHZ
+PLC_NGHZ_2:
+loc_247B4:
+		dc.w    (((loc_247D4-loc_247B4-$02)/$06)-$01) ; Auto Detect Number of Sprites Esrael L. G. Neto
+		dc.l    Air_Bubbles_Numbers     ; loc_79AC0
+		dc.w    $A000 
+		dc.l    Nem_VSpikes		  ; loc_7914E
+		dc.w    $8680   
+		dc.l    Nem_DSpring;ArtNem_LeverSpring       ; loc_798F4
+		dc.w    $8800   
+		dc.l    Nem_VSpring2;ArtNem_VrtclSprng         ; loc_78658
+		dc.w    $8B80   
+		dc.l    Nem_HSpring2;ArtNem_HrzntlSprng       ; loc_78774
+		dc.w    $8E00    
+loc_247D4:
+PLC_OOZ_2:
+loc_24684: 
+		dc.w    (((loc_246C2-loc_24684-$02)/$06)-$01) ; Auto Detect Number of Sprites Esrael L. G. Neto
+		dc.l    ArtNem_OOZBall		; loc_76602 
+		dc.w    $6A80 
+		dc.l    ArtNem_LaunchBall              ; loc_76722
+		dc.w    $6D00 
+		dc.l    ArtNem_OOZPlatform ; loc_76A12
+		dc.w    $73A0  
+		dc.l    ArtNem_PushSpring   ; loc_76CA6
+		dc.w    $78A0       
+		dc.l    ArtNem_OOZSwingPlat      ; loc_76E68
+		dc.w    $7C60 
+		dc.l    ArtNem_Button		  ; loc_78580
+		dc.w    $8480   
+		dc.l    Nem_VSpikes;ArtNem_Spikes		  ; loc_7914E
+		dc.w    $8680   
+		dc.l    ArtNem_DignlSprng         ; loc_7883E
+		dc.w    $8780		
+		dc.l    Nem_VSpring2;ArtNem_VrtclSprng         ; loc_78658
+		dc.w    $8B80   
+		dc.l    Nem_HSpring2;ArtNem_HrzntlSprng       ; loc_78774
+		dc.w    $8E00 
+Dust_Hill_Sprites_1:   
+loc_246C2:
+PLC_DHZ_2:
+loc_246E2: 
+		dc.w    (((loc_24708-loc_246E2-$02)/$06)-$01) ; Auto Detect Number of Sprites Esrael L. G. Neto
+		dc.l    ArtNem_HorizSpike   ; loc_79A44        
+		dc.w    $8580 
+		dc.l    Nem_VSpikes;ArtNem_Spikes		  ; loc_7914E
+		dc.w    $8680   
+		dc.l    ArtNem_DHZGateLog              ; loc_77614
+		dc.w    $8780  
+		dc.l    ArtNem_LeverSpring       ; loc_798F4
+		dc.w    $8800  
+		dc.l    Nem_VSpring2;ArtNem_VrtclSprng         ; loc_78658
+		dc.w    $8B80   
+		dc.l    Nem_HSpring2;ArtNem_HrzntlSprng       ; loc_78774
+		dc.w    $8E00   
+Casino_Night_Sprites_1:   
+loc_24708:
+;End_Level_Results_Sprites:	
 PLC_MTZ2:	dc.w ((PLC_MTZ2_End-PLC_MTZ2-$02)/6)-1
 		dc.l    ArtNem_Button		  ; loc_78580
 		dc.w    $8480     
@@ -36478,8 +37043,8 @@ PLC_CPZ:	dc.w ((PLC_CPZ_End-PLC_CPZ-$02)/6)-1
 		dc.w    $7600  
 		dc.l    ArtNem_CPZTubeSpring        ; loc_78074
 		dc.w    $7C00   
-;		dc.l    Nem_HPZ_WaterSurface;Water_Surface           ; loc_777D2  
-;		dc.w    $400
+		dc.l    Nem_HPZ_WaterSurface;Water_Surface           ; loc_777D2  
+		dc.w    $8000
 		dc.l    ArtNem_CPZStairBlock           ; loc_77EB4
 		dc.w    $8300 
 		dc.l    ArtNem_CPZMetalBlock
@@ -36534,6 +37099,9 @@ PLC_HPZ:	dc.w ((PLC_HPZ_End-PLC_HPZ)/6)-1
 		plreq $34A, Nem_HPZ_Platform
 		plreq $35A, Nem_HPZ_PulsingBall
 		plreq $37C, Nem_HPZ_Various
+;		dc.l    Hpz_Unknow_Platform     ; loc_75DD6   
+;		dc.w    $6F80 ;384 if divided by 2, yes i used an online calculator i'm too lazy
+		plreq $384, Hpz_Unknow_Platform;originally $374
 		plreq $392, Nem_HPZ_Emerald
 		plreq $400, Nem_HPZ_WaterSurface
 PLC_HPZ_End:
@@ -36543,6 +37111,9 @@ PLC_HPZ_End:
 ; --------------------------------------------------------------------------------------
 PLC_HPZ2:	dc.w ((PLC_HPZ2_End-PLC_HPZ2)/6)-1
 		plreq $500, Nem_Redz
+		plreq $3C4, Nem_Triceratops
+		plreq $45C, Nem_VSpring2
+		plreq $430, Nem_HPZ_Piranha
 word_1C1E2:	plreq $530, Nem_Bat
 PLC_HPZ2_End:
 		; unused PLR entries
@@ -37980,7 +38551,16 @@ Art_UnkZone_8:	dc.l  $6600666,	$7777777, $8888888,	   0, $6600666,	$7777777, $88
 		dc.l	     0,	$6600666, $7777777, $8888888,	     0,	$6600666, $7777777, $8888888; 8
 		dc.l  $8888888,	       0, $6600666, $7777777, $8888888,	       0, $6600666, $7777777; 16
 		dc.l  $7777777,	$8888888,	 0, $6600666, $7777777,	$8888888,	 0, $6600666; 24
-
+Level_WZ1:	incbin	"level/layout/WZ_1.bin"
+Level_WZBG:	incbin	"level/layout/WZ_BG.bin"
+Level_CNZ2:	incbin	"level/layout/CNZ_2.bin"
+Level_OOZ2:	incbin	"level/layout/OOZ_2.bin"
+Level_NGHZ1:	incbin	"level/layout/NGHZ_1.bin"
+Level_NGHZ2:	incbin	"level/layout/NGHZ_2.bin"
+Level_NGHZBG:	incbin	"level/layout/NGHZ_BG.bin"
+Level_SSZ1:		incbin	"level/layout/SSZ_1.bin"
+Level_SSZ2:		incbin	"level/layout/SSZ_2.bin"
+Level_SSZBG:	incbin	"level/layout/SSZ_BG.bin"
 ; ---------------------------------------------------------------------------
 ; Level layouts, three entries per act (although the third one is unused)
 ; --------------------------------------------------------------------------- 
@@ -38020,10 +38600,72 @@ Level_Index:	dc.w Level_GHZ1-Level_Index,Level_GHZBg-Level_Index,Level_Null-Leve
 		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
 
 		dc.w Level_DHZ1-Level_Index,Level_DHZBG-Level_Index,Level_Null-Level_Index;Ending, now wood zone
-		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
+		dc.w Level_DHZ2-Level_Index,Level_DHZBG-Level_Index,Level_Null-Level_Index
 		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
 		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
 
+		dc.w Level_CNZ1-Level_Index,Level_CNZBG-Level_Index,Level_Null-Level_Index;id 08, casino night
+		dc.w Level_CNZ2-Level_Index,Level_CNZBG-Level_Index,Level_Null-Level_Index
+		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
+		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
+
+		dc.w Level_OOZ1-Level_Index,Level_OOZBG-Level_Index,Level_Null-Level_Index;id 08, casino night
+		dc.w Level_OOZ2-Level_Index,Level_OOZBG-Level_Index,Level_Null-Level_Index
+		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
+		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
+		
+		dc.w Level_NGHZ1-Level_Index,Level_NGHZBG-Level_Index,Level_Null-Level_Index;id 08, casino night
+		dc.w Level_NGHZ2-Level_Index,Level_NGHZBG-Level_Index,Level_Null-Level_Index
+		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
+		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
+		
+		dc.w Level_SSZ1-Level_Index,Level_SSZBG-Level_Index,Level_Null-Level_Index;id 08, casino night
+		dc.w Level_SSZ2-Level_Index,Level_SSZBG-Level_Index,Level_Null-Level_Index
+		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
+		dc.w Level_CPZ1-Level_Index,Level_CPZBg-Level_Index,Level_Null-Level_Index
+Level_EHZ1:	incbin	"level/layout/EHZ_1.bin"
+		even
+Level_EHZ2:	incbin	"level/layout/EHZ_2.bin"
+		even
+Level_EHZBg:	incbin	"level/layout/EHZ_BG.bin"
+		even
+Level_HTZ1:	incbin	"level/layout/HTZ_1.bin"
+		even
+Level_HTZ2:	incbin	"level/layout/HTZ_2.bin"
+		even
+Level_HTZBg:	incbin	"level/layout/HTZ_BG.bin"
+		even
+Level_CPZ1:	incbin	"level/layout/CPZ_1.bin"
+		even
+Level_CPZ2:	incbin	"level/layout/CPZ_2.bin"
+		even
+Level_HPZ1:	incbin	"level/layout/HPZ_1.bin"
+		even
+Level_CPZBg:	incbin	"level/layout/CPZ_BG.bin"
+		even
+Level_HPZBg:	incbin	"level/layout/HPZ_BG.bin"
+		even
+Level_DHZ1:	incbin	"level/layout/DHZ_1.bin"
+Level_DHZ2: incbin	"level/layout/DHZ_2.bin"
+Level_DHZBG:	incbin	"level/layout/DHZ_BG.bin"
+Level_CNZ1:	incbin	"level/layout/CNZ_1.bin"
+;Level_CNZ2:	incbin	"level/layout/CNZ_2.bin"
+Level_CNZBG:	incbin	"level/layout/CNZ_BG.bin"
+Level_OOZ1:	incbin	"level/layout/OOZ_1.bin"
+;Level_OOZ2:	incbin	"level/layout/OOZ_2.bin"
+Level_OOZBG:	incbin	"level/layout/OOZ_BG.bin"
+Level_MTZ1:
+		incbin	"level/layout/MTZ_1.bin"
+Level_MTZ2:
+		incbin	"level/layout/MTZ_2.bin"
+Level_MTZBg:
+		incbin	"level/layout/MTZ_BG.bin"
+Level_MTZ3:
+		incbin	"level/layout/MTZ_3.bin"
+;Level_NGHZ1:	incbin	"level/layout/NGHZ_1.bin"
+;Level_NGHZ2:	incbin	"level/layout/NGHZ_2.bin"
+;Level_NGHZBG:	incbin	"level/layout/NGHZ_BG.bin"
+Level_Null:	dc.b   0,  0,  0,  0
 Level_GHZ1:	dc.b $2F,  4,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0; 0
 					; DATA XREF: ROM:Level_Indexo
 		dc.b   0,  0,  0,  0,  0,  0,  0,  0,  0,$38,  1,  1,  1,$24,  0,  0; 16
@@ -38079,42 +38721,6 @@ Level_GHZBg:	dc.b $1F,  0,$3D,$3E,$3A,$3F,$30,$39,$3B,$3D,$3A,$30,$3E,$39,$3D,$3
 					; DATA XREF: ROM:Level_Indexo
 		dc.b $3B,$3D,$3E,$3A,$3F,$3E,$3A,$3F,$30,$39,$3B,$3D,$3A,$30,$3E,$39; 16
 		dc.b $3D,$3B		; 32
-Level_EHZ1:	incbin	"level/layout/EHZ_1.bin"
-		even
-Level_EHZ2:	incbin	"level/layout/EHZ_2.bin"
-		even
-Level_EHZBg:	incbin	"level/layout/EHZ_BG.bin"
-		even
-Level_HTZ1:	incbin	"level/layout/HTZ_1.bin"
-		even
-Level_HTZ2:	incbin	"level/layout/HTZ_2.bin"
-		even
-Level_HTZBg:	incbin	"level/layout/HTZ_BG.bin"
-		even
-Level_CPZ1:	incbin	"level/layout/CPZ_1.bin"
-		even
-Level_CPZ2:	incbin	"level/layout/CPZ_2.bin"
-		even
-Level_HPZ1:	incbin	"level/layout/HPZ_1.bin"
-		even
-Level_CPZBg:	incbin	"level/layout/CPZ_BG.bin"
-		even
-Level_HPZBg:	incbin	"level/layout/HPZ_BG.bin"
-		even
-Level_WZ1:	incbin	"level/layout/WZ_1.bin"
-Level_WZBG:	incbin	"level/layout/WZ_BG.bin"
-Level_DHZ1:	incbin	"level/layout/DHZ_1.bin"
-Level_DHZBG:	incbin	"level/layout/DHZ_BG.bin"
-Level_MTZBg:
-		incbin	"level/layout/MTZ_BG.bin"
-Level_MTZ1:
-		incbin	"level/layout/MTZ_1.bin"
-Level_MTZ2:
-		incbin	"level/layout/MTZ_2.bin"
-Level_MTZ3:
-		incbin	"level/layout/MTZ_3.bin"
-Level_Null:	dc.b   0,  0,  0,  0
-
 Art_BigRing:	dc.l	     0,	       0,	 0,	   0,	    $D,	     $DD,    $EDDC,   $EDDCC,	     0,	     $DD,   $DDCCC, $DDCCC6C,$DCCCCCCC,$CCCCCCCC,$CCCDCDDD,$DDCCCCDD; 0
 		dc.l   $CCCCCC,$CCC66666,$66666666,$CCCCCCCC,$CCCCCCCC,$CDDDDDDD,$DDDDDDDD,$DDDEEEEE,$CCCCCC00,$666666CC,$66666666,$66666666,$CCCCC666,$DDDDDCCC,$DDDDDDDD,$EEEEEEEE; 16
 		dc.l	     0,$CC000000,$66CCC000,$66666CC0,$66666666,$CC666666,$DCCCC666,$DDDDCCC6,	     0,	       0,	 0,	   0,$C0000000,$66000000,$666C0000,$66666000; 32
@@ -38571,7 +39177,10 @@ Leftover_Art_Alphabet:dc.b   0,	 0,  0,	 0,  0,	 0,  0,	 0,  0,	 0,  0,	 0,  0,	
 
 Leftover_31000:
 		incbin	"misc/leftovers/31000.bin"
-
+ObjPos_SSZ1:
+		incbin	"level/objects/SSZ_1.bin"
+ObjPos_SSZ2:
+		incbin	"level/objects/SSZ_2.bin"
 ; --------------------------------------------------------------------------------------
 ; Object layouts
 ; --------------------------------------------------------------------------------------
@@ -38605,13 +39214,33 @@ ObjPos_Index:	dc.w ObjPos_GHZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_HTZ3-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_HTZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index
 
-		dc.w ObjPos_WZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		dc.w ObjPos_WZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index	;wood zone act 1
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
 
+		dc.w ObjPos_DHZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index;DHZ
 		dc.w ObjPos_WZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		
+		dc.w ObjPos_WZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index;CNZ
+		dc.w ObjPos_WZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		
+		dc.w ObjPos_OOZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index;OOZ
+		dc.w ObjPos_OOZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		
+		dc.w ObjPos_NGHZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index;NGHZ
+		dc.w ObjPos_NGHZ2-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		
+		dc.w ObjPos_SSZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index;NGHZ
+		dc.w ObjPos_SSZ2-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		; platform objects in LZ/SBZ (unused)
@@ -38638,6 +39267,16 @@ ObjPos_LZ2:		incbin	"level/objects/MTZ_2.bin"
 ObjPos_LZ3:		incbin	"level/objects/MTZ_3.bin"
 		dc.w $FFFF,    0,    0
 ObjPos_WZ1:		incbin	"level/objects/WZ_1.bin"
+		dc.w $FFFF,    0,    0
+ObjPos_DHZ1:	incbin	"level/objects/DHZ_1.bin"
+		dc.w $FFFF,    0,    0
+ObjPos_OOZ1:	incbin	"level/objects/OOZ_1.bin"
+		dc.w $FFFF,    0,    0
+ObjPos_OOZ2:	incbin	"level/objects/OOZ_2.bin"
+		dc.w $FFFF,    0,    0
+ObjPos_NGHZ1:	incbin	"level/objects/NGHZ_1.bin"
+		dc.w $FFFF,    0,    0
+ObjPos_NGHZ2:	incbin	"level/objects/NGHZ_2.bin"
 		dc.w $FFFF,    0,    0
 ObjPos_CPZ1:	incbin	"level/objects/CPZ_1.bin"
 		dc.w $FFFF,    0,    0
@@ -38816,7 +39455,26 @@ RingPos_Index:	dc.w RingPos_GHZ1-RingPos_Index
 		dc.w RingPos_HTZ2-RingPos_Index
 		dc.w RingPos_LZ3-RingPos_Index
 		dc.w RingPos_LZ1-RingPos_Index
+		
+		dc.w RingPos_HTZ1-RingPos_Index
+		dc.w RingPos_HTZ2-RingPos_Index
+		dc.w RingPos_LZ3-RingPos_Index
+		dc.w RingPos_LZ1-RingPos_Index
+		
+		dc.w RingPos_HTZ1-RingPos_Index
+		dc.w RingPos_HTZ2-RingPos_Index
+		dc.w RingPos_LZ3-RingPos_Index
+		dc.w RingPos_LZ1-RingPos_Index
 
+		dc.w RingPos_HTZ1-RingPos_Index
+		dc.w RingPos_HTZ2-RingPos_Index
+		dc.w RingPos_LZ3-RingPos_Index
+		dc.w RingPos_LZ1-RingPos_Index
+		
+		dc.w RingPos_HTZ1-RingPos_Index
+		dc.w RingPos_HTZ2-RingPos_Index
+		dc.w RingPos_LZ3-RingPos_Index
+		dc.w RingPos_LZ1-RingPos_Index
 RingPos_GHZ1:	incbin	"level/rings/GHZ_1.bin"
 		even
 RingPos_GHZ2:	incbin	"level/rings/GHZ_2.bin"
@@ -40797,5 +41455,133 @@ Map16_DHZ:
 		incbin	"mappings/16x16/DHZ.bin"
 Map128_DHZ:
 		incbin	"mappings/128x128/DHZ.bin"
+Nem_CNZ:
+		incbin	"art/nemesis/CNZ primary.bin"
+Map16_CNZ:
+		incbin	"mappings/16x16/CNZ.bin"
+Map128_CNZ:
+		incbin	"mappings/128x128/CNZ.bin"
+ColP_DHZ:
+ColS_DHZ:
+		incbin	"collision/DHZ 16x16 collision index.bin"
+ColP_CNZ:
+		incbin	"collision/CNZ primary 16x16 collision index.bin"
+ColS_CNZ:
+		incbin	"collision/CNZ secondary 16x16 collision index.bin"
+Nem_OOZ:
+		incbin	"art/nemesis/OOZ primary.bin"
+Map16_OOZ:
+		incbin	"mappings/16x16/OOZ.bin"
+Map128_OOZ:
+		incbin	"mappings/128x128/OOZ.bin"
+ColP_OOZ:
+ColS_OOZ:
+		incbin	"collision/OOZ 16x16 collision index.bin"
+ColP_NGHZ:
+		incbin	"collision/NGHZ primary 16x16 collision index.bin"
+ColS_NGHZ:
+		incbin	"collision/NGHZ secondary 16x16 collision index.bin"
+Nem_NGHZ:
+		incbin	"art/nemesis/NGHZ primary.bin"
+Map16_NGHZ:
+		incbin	"mappings/16x16/NGHZ.bin"
+Map128_NGHZ:
+		incbin	"mappings/128x128/NGHZ.bin"
+Obj_0x6E_Machine:
+		include	"SWObjects/6E MTZ rotating thing on cogs.asm"
+Obj_Ox6F_Parallelogram_Elevator:
+		include	"SWObjects/6F MTZ useless triangle.asm"
+Obj_0x72_Conveyor_Belt_Attributes:
+		include	"SWObjects/72 MTZ conveyor belts.asm"
+Obj_0x7A_Platform_Horizontal:
+		include	"SWObjects/7A CPZ2 platform that moves on water.asm"
+Obj_0x07:
+		include	"SWObjects/07 OOZ sinking oil.asm"
+Obj_0x2C_Leaves:
+		include	"SWObjects/2C NGHZ leaf effects.asm"
+Nghz_Water_Surface: ; loc_78270:      
+		incbin  "art/nemesis/watrsurf.nem"   
+Nghz_Leaves: ; loc_78356:     
+		incbin  "art/nemesis/leaves.nem"						 
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Arrow shooter and arrow from ARZ	; ArtNem_783E2: Nghz_Arrow_Shooter:
+	even
+ArtNem_ArrowAndShooter:	incbin	"art/nemesis/Arrow shooter and arrow from NGHZ.bin"
+
+Nghz_Water_Splash: ; loc_78540:				  
+		incbin  "art/nemesis/w_splash.nem"						             
+;---------------------------------------------------------------------------------------
+Air_Bubbles_Numbers: ; loc_79AC0: 
+		incbin  "art/nemesis/airbubls.nem"		
+ArtNem_OOZElevator:	incbin	"art/nemesis/Rising platform from OOZ.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Spiked thing from OOZ			; ArtNem_76060: OOz_Giant_Spikeball:
+	even
+ArtNem_SpikyThing:	incbin	"art/nemesis/Spiked ball from OOZ.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Green platform over the burners in OOZ	; ArtNem_80274: OOz_Touch_Boost_Up:
+	even
+ArtNem_BurnerLid:	incbin	"art/nemesis/Burner platform from OOZ.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Striped blocks from OOZ			; ArtNem_762EE: OOz_Break_Boost:
+	even
+ArtNem_StripedBlocksVert:	incbin	"art/nemesis/Striped blocks from OOZ.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Oil splashing into oil in OOZ			; ArtNem_7635A: OOz_Oil:
+	even
+ArtNem_Oilfall:		incbin	"art/nemesis/Cascading oil hitting oil from OOZ.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Cascading oil from OOZ			; ArtNem_764D6: OOz_Tube_Oil:
+	even
+ArtNem_Oilfall2:	incbin	"art/nemesis/Cascading oil from OOZ.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Ball thing from OOZ				; ArtNem_76602: OOz_Ball:
+	even
+ArtNem_OOZBall:		incbin	"art/nemesis/Ball on spring from OOZ.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Spinball from OOZ				; ArtNem_76722: OOz_Cannon:
+	even
+ArtNem_LaunchBall:	incbin	"art/nemesis/Transporter ball from OOZ.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Collapsing platform from OOZ			; ArtNem_76A12: OOz_Collapsing_Platform:
+	even
+ArtNem_OOZPlatform:	incbin	"art/nemesis/OOZ collapsing platform.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Diagonal and vertical weird spring from OOZ	; ArtNem_76CA6: OOz_Spring_Push_Boost:
+	even
+ArtNem_PushSpring:	incbin	"art/nemesis/Push spring from OOZ.bin"
+;--------------------------------------------------------------------------------------
+; Nemesis compressed art
+; Swinging platform from OOZ			; ArtNem_76E68: OOz_Swing_Platform:
+	even
+ArtNem_OOZSwingPlat:	incbin	"art/nemesis/Swinging platform from OOZ.bin"
+ArtNem_DignlSprng:	incbin	"art/nemesis/Diagonal spring SW.bin"
+ArtNem_HorizSpike:	incbin	"art/nemesis/Long horizontal spike.bin"
+ArtNem_LeverSpring:	incbin	"art/nemesis/Lever spring.bin"
+ArtNem_DHZGateLog:	incbin	"art/nemesis/Drawbridge logs from DHZ.bin"
+Obj_0x20_HPZ_Platform:
+		include	"SWobjects/20 HPZ rising platform.asm"
+Hpz_Unknow_Platform:
+		incbin	"art/nemesis/unkptfm.nem"
+Nem_SSZ:
+		incbin	"art/nemesis/SSZ primary.bin"
+Map16_SSZ:
+		incbin	"mappings/16x16/SSZ.bin"
+Map128_SSZ:
+		incbin	"mappings/128x128/SSZ.bin"
+ColP_SSZ:
+		incbin	"collision/SSZ_primary_16x16_collision_index.unc"
+ColS_SSZ:
+		incbin	"collision/SSZ_secondary_16x16_collision_index.unc"
 ; end of 'ROM'
 		END

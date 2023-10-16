@@ -5453,7 +5453,7 @@ loc_5260:
 		bsr.w     SS_Background_Load      ; loc_54CA
 		moveq   #$14, D0
 		bsr.w     RunPLC_ROM              ; loc_18A8
-		clearRAM Primary_Collision,Primary_Collision+$2000	; this should be Object_RAM; leftover from Sonic 1
+		clearRAM Primary_Collision,Object_RAM;Primary_Collision+$2000	; this should be Object_RAM; leftover from Sonic 1
 		clearRAM Misc_Variables,Misc_Variables_End
 		clearRAM Oscillating_Data,Oscillating_Numbers_End
 		clearRAM Decomp_Buffer,Decomp_Buffer_End

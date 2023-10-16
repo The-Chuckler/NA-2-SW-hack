@@ -183,11 +183,13 @@ loc_163FE:
 ; ---------------------------------------------------------------------------
 ; Sprite mappings
 ; ---------------------------------------------------------------------------
-Obj19_MapUnc_16412:	dc.w wrd_154AE-Obj19_MapUnc_16412 ; DATA XREF: ROM:000152D8o
-					; ROM:Map_Obj19o ...
-wrd_154AE:	dc.w 2			; DATA XREF: ROM:Map_Obj19o
-		dc.w $F00F,    0,    0,$FFE0; 0
-		dc.w $F00F, $800, $800,	   0; 4;	incbin	"mappings/sprite/obj19.bin"
+Obj19_MapUnc_16412:
+		incbin	"mappings/sprite/obj19.bin"
+;	dc.w wrd_154AE-Obj19_MapUnc_16412 ; DATA XREF: ROM:000152D8o
+;					; ROM:Map_Obj19o ...
+;wrd_154AE:	dc.w 2			; DATA XREF: ROM:Map_Obj19o
+;		dc.w $F00F,    0,    0,$FFE0; 0
+;		dc.w $F00F, $800, $800,	   0; 4;	incbin	"mappings/sprite/obj19.bin"
 ; ===========================================================================
 		nop
 

@@ -25,7 +25,16 @@ Obj01_Init:
 		addq.b	#2,routine(a0)	; => Obj01_Control
 		move.b	#$13,$16(a0)	; this sets Sonic's collision height (2*pixels)
 		move.b	#9,$17(a0)
-		move.l	#Map_Sonic,4(a0)
+		cmpi.b	#$01, ($FFFFFFF9).w	; is the multiple character flag set to $01 (Metal Sonic)?
+		bne.s	SonicMapLoad		; if not, load Sonic's art
+;		move.l	#Map_Tails,4(a0);lea	(Art_MetalSonic).l,a1	; load Metal Sonic's art
+		bra.s	ContLoadInit2		; branch to rest of code
+
+SonicMapLoad:
+		move.l	#Map_Sonic,4(a0);lea	(Art_Sonic).l, a1	; load Sonic's art
+
+;ContLoadInit:
+;		move.l	#Map_Sonic,4(a0)
 		move.w	#$780,2(a0)
 		bsr.w	Adjust2PArtPointer
 		move.b	#2,$18(a0)
@@ -40,6 +49,26 @@ Obj01_Init:
 		move.b	#4,$2D(a0)
 		move.w	#0,(Sonic_Pos_Record_Index).w
 		move.w	#$3F,d2
+		bra.w	loc_FA88
+		rts
+ContLoadInit2:
+;		addq.b	#2,routine(a0)
+		move.b	#$F,$16(a0)
+		move.b	#9,$17(a0)
+		move.l	#Map_Tails,4(a0)
+		move.w	#$780,2(a0)
+		bsr.w	Adjust2PArtPointer
+		move.b	#2,$18(a0)
+		move.b	#$18,$19(a0)
+		move.b	#$84,1(a0)
+		move.w	#$600,(Sonic_top_speed).w
+		move.w	#$C,(Sonic_acceleration).w
+		move.w	#$80,(Sonic_deceleration).w
+		move.b	#$C,$3E(a0)
+		move.b	#$D,$3F(a0)
+		move.b	#0,$2C(a0)
+		move.b	#4,$2D(a0)
+		move.b	#5,($FFFFB180).w;move.b	#5,($FFFFB1C0).w	; load Tails' tails at $B1C0 C-4 cat da? deci, C=12, deci C-4 egal 8. interesant
 
 loc_FA88:
 		bsr.w	Sonic_RecordPos
@@ -132,6 +161,10 @@ Obj01_ChkInvin:		; Checks if invincibility has expired and (should) disables it 
 ; ===========================================================================
 ; Strange that they disabled the invincibility timer for this build,
 ; a leftover debugging feature?
+		tst.b	($FFFFFE2D).w
+		beq.s	Obj01_ChkShoes
+		tst.w	$32(a0)
+		beq.s	Obj01_ChkShoes
 		subq.w	#1,$32(a0)
 		bne.s	Obj01_ChkShoes
 		tst.b	($FFFFF7AA).w
@@ -1092,55 +1125,7 @@ locret_10360:				; CODE XREF: Sonic_JumpHeight+32j
 
 ; Sonic_Spindash:
 Sonic_CheckSpindash:
-		tst.b	$39(a0)
-		bne.s	Sonic_UpdateSpindash
-		cmpi.b	#8,$1C(a0)
-		bne.s	locret_10394
-		move.b	($FFFFF603).w,d0
-		andi.b	#$70,d0
-		beq.w	locret_10394
-		move.b	#9,$1C(a0)
-		move.w	#$BE,d0
-		jsr	(PlaySound_Special).l
-		addq.l	#4,sp
-		move.b	#1,$39(a0)
-
-locret_10394:
-		rts
-; ===========================================================================
-; loc_10396:
-Sonic_UpdateSpindash:
-		move.b	($FFFFF602).w,d0
-		btst	#1,d0
-		bne.s	Sonic_ChargingSpindash
-
-		; unleash the charged spindash and start rolling quickly:
-		move.b	#$E,$16(a0)
-		move.b	#7,$17(a0)
-		move.b	#2,$1C(a0)
-		addq.w	#5,$C(a0)	; add the difference between Sonic's rolling and standing heights
-		move.b	#0,$39(a0)
-		move.w	#$2000,($FFFFEED0).w
-		move.w	#$800,$14(a0)
-		btst	#0,$22(a0)
-		beq.s	loc_103D4
-		neg.w	$14(a0)
-
-loc_103D4:
-		bset	#2,$22(a0)
-		rts
-; ===========================================================================
-; loc_103DC:
-Sonic_ChargingSpindash:
-		move.b	($FFFFF603).w,d0
-		andi.b	#$70,d0	
-		beq.w	loc_103EA
-		nop
-
-loc_103EA:
-		addq.l	#4,sp
-		rts
-; End of function Sonic_CheckSpindash
+		include	"SonicSpinDash.asm";include	"SonicSpinDashOld.asm"
 
 
 ; =============== S U B	R O U T	I N E =======================================
@@ -1689,11 +1674,22 @@ locret_108C8:				; CODE XREF: ROM:000108BAj
 ; =============== S U B	R O U T	I N E =======================================
 
 
-Sonic_Animate:				; CODE XREF: ROM:loc_FAFEp
+Sonic_Animate:
+		cmpi.b	#$01, ($FFFFFFF9).w	; is the multiple character flag set to $01 (Metal Sonic)?
+		bne.s	SonicAnim;SonicArtLoad		; if not, load Sonic's art
+		bra.w	Tails_Animate
+;		lea	(Art_MetalSonic).l,a1	; load Metal Sonic's art
+;		bra.s	ContLoadPLC		; branch to rest of code
+
+;SonicArtLoad:
+;		lea	(Art_Sonic).l, a1	; load Sonic's art
+;
+;ContLoadPLC:
+				; CODE XREF: ROM:loc_FAFEp
 					; ROM:0001078Ap ...
 
 ; FUNCTION CHUNK AT 0001095C SIZE 0000015E BYTES
-
+SonicAnim:
 		lea	(SonicAniData).l,a1
 		moveq	#0,d0
 		move.b	$1C(a0),d0
@@ -1991,7 +1987,15 @@ LoadSonicDynPLC:
 		cmp.b	(Sonic_LastLoadedDPLC).w,d0
 		beq.s	locret_10C34
 		move.b	d0,(Sonic_LastLoadedDPLC).w
+		cmpi.b	#$01, ($FFFFFFF9).w	; is the multiple character flag set to $01 (Metal Sonic)?
+		bne.s	ContLoadPLCLoads		; if not, load Sonic's art
+		lea	(TailsDynPLC).l,a2	; load Metal Sonic's art
+		bra.s	ContLoadPLC2		; branch to rest of code
+		
+ContLoadPLCLoads:
 		lea	(SonicDynPLC).l,a2
+ContLoadPLC2:
+;		lea	(SonicDynPLC).l,a2
 		add.w	d0,d0
 		adda.w	(a2,d0.w),a2
 		move.w	(a2)+,d5
@@ -2008,7 +2012,16 @@ SPLC_ReadEntry:
 		addi.w	#$10,d3
 		andi.w	#$FFF,d1
 		lsl.l	#5,d1
-		addi.l	#Art_Sonic,d1
+		cmpi.b	#$01, ($FFFFFFF9).w	; is the multiple character flag set to $01 (Metal Sonic)?
+		bne.s	SonicArtLoad		; if not, load Sonic's art
+		addi.l	#Art_Tails,d1;lea	(Art_Tails).l,a1	; load Tails's art
+		bra.s	ContLoadPLC		; branch to rest of code
+
+SonicArtLoad:
+		addi.l	#Art_Sonic,d1;lea	(Art_Sonic).l, a1	; load Sonic's art
+
+ContLoadPLC:
+;		addi.l	#Art_Sonic,d1;thi'll get replaced soon
 		move.w	d4,d2
 		add.w	d3,d4
 		add.w	d3,d4

@@ -25,3 +25,5 @@ Camera_Y_pos_diff:		equ	$FFFFEEB2
 Normal_palette_line2:	equ	$FFFFFB20;6
 Camera_X_pos:	equ	$FFFFEE00
 Camera_Y_pos:	equ	$FFFFEE04
+Normal_palette:	equ	$FFFFFB00;4
+Ctrl_1_Press:	equ	$FFFFF605
