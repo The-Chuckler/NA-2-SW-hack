@@ -112,7 +112,7 @@ Ring_Positions:			equ $FFFFE800
 
 Sonic_Pos_Record_Index:		equ $FFFFEED2
 
-v_snddriver_ram:	equ $FFFFF000 ; start of RAM for the sound driver data ($5C0 bytes)
+v_snddriver_ram:	equ $FFFFF000 ; start of RAM for the sound driver data ($5C0 bytes); holy fuck thats a ton of ram
 
 ; =================================================================================
 ; From here on, until otherwise stated, all offsets are relative to v_snddriver_ram

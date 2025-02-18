@@ -1,0 +1,181 @@
+Mono runtime detected.
+Operating system: Unix 6.12.13.200
+Opening INI file "/home/toni/Desktop/romhax/s2/NA-2-SW-hack/SonLVL INI Files/SonLVL.ini"...
+Game type is S2NA.
+Loading Chemical Plant Zone Act 2...
+Loading 16x16 blocks from file "../mappings/16x16/CPZ.bin", using compression Uncompressed...
+Loading 128x128 chunks from file "../mappings/128x128/CPZ.bin", using compression Uncompressed...
+Loading 8x8 tiles from file "../art/nemesis/CPZ primary.bin", using compression Nemesis...
+Loading FG layout from file "../level/layout/CPZ_2.bin", using compression Uncompressed...
+Loading BG layout from file "../level/layout/CPZ_BG.bin", using compression Uncompressed...
+Loading FG layout from file "../level/layout/CPZ_1.bin", using compression Uncompressed...
+Loading palette file "../art/palettes/Sonic and Tails.bin"...
+Source: 0 Destination: 0 Length: 16
+Loading palette file "../art/palettes/CPZ.bin"...
+Source: 0 Destination: 16 Length: 48
+Loading object definition file "obj.ini".
+Loading object definition file "obj.ini".
+Loading ObjectDefinition type S2ObjectDefinitions.Common.PathSwapper from "Common/PathSwapper.cs"...
+Loading type from cached assembly "dllcache/S2ObjectDefinitions.Common.PathSwapper.dll"...
+System.AggregateException: One or more errors occurred. (Could not load type of field 'S2ObjectDefinitions.Common.PathSwapper:img' (0) due to: Expected reference type but got type kind 17) ---> System.TypeLoadException: Could not load type of field 'S2ObjectDefinitions.Common.PathSwapper:img' (0) due to: Expected reference type but got type kind 17
+  at System.Reflection.RuntimeConstructorInfo.InternalInvoke (System.Object obj, System.Object[] parameters, System.Boolean wrapExceptions) [0x00039] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.RuntimeType.CreateInstanceMono (System.Boolean nonPublic, System.Boolean wrapExceptions) [0x000b7] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.RuntimeType.CreateInstanceSlow (System.Boolean publicOnly, System.Boolean wrapExceptions, System.Boolean skipCheckThis, System.Boolean fillCache) [0x0000c] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.RuntimeType.CreateInstanceDefaultCtor (System.Boolean publicOnly, System.Boolean skipCheckThis, System.Boolean fillCache, System.Boolean wrapExceptions, System.Threading.StackCrawlMark& stackMark) [0x0002a] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Activator.CreateInstance (System.Type type, System.Boolean nonPublic, System.Boolean wrapExceptions) [0x00040] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Activator.CreateInstance (System.Type type, System.Boolean nonPublic) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Activator.CreateInstance (System.Type type) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at SonicRetro.SonLVL.API.LevelData+<>c.<InitObjectDefinitions>b__98_0 (System.Collections.Generic.KeyValuePair`2[TKey,TValue] group) [0x0016e] in <2864628989d04c749234658428d5fbd9>:0 
+  at System.Threading.Tasks.Parallel+<PartitionerForEachWorker>c__AnonStorey6`2[TSource,TLocal].<>m__1 (System.Collections.IEnumerator& partitionState, System.Int32 timeout, System.Boolean& replicationDelegateYieldedBeforeCompletion) [0x0013f] in <8611ac11d22247aabb4fd94490032492>:0 
+--- End of stack trace from previous location where exception was thrown ---
+
+  at System.Threading.Tasks.Parallel+<PartitionerForEachWorker>c__AnonStorey6`2[TSource,TLocal].<>m__1 (System.Collections.IEnumerator& partitionState, System.Int32 timeout, System.Boolean& replicationDelegateYieldedBeforeCompletion) [0x002f6] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.TaskReplicator+Replica`1[TState].ExecuteAction (System.Boolean& yieldedBeforeCompletion) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.TaskReplicator+Replica.Execute () [0x00029] in <8611ac11d22247aabb4fd94490032492>:0 
+   --- End of inner exception stack trace ---
+  at System.Threading.Tasks.TaskReplicator.Run[TState] (System.Threading.Tasks.TaskReplicator+ReplicatableUserAction`1[TState] action, System.Threading.Tasks.ParallelOptions options, System.Boolean stopOnFirstFailure) [0x0006a] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Parallel.PartitionerForEachWorker[TSource,TLocal] (System.Collections.Concurrent.Partitioner`1[TSource] source, System.Threading.Tasks.ParallelOptions parallelOptions, System.Action`1[T] simpleBody, System.Action`2[T1,T2] bodyWithState, System.Action`3[T1,T2,T3] bodyWithStateAndIndex, System.Func`4[T1,T2,T3,TResult] bodyWithStateAndLocal, System.Func`5[T1,T2,T3,T4,TResult] bodyWithEverything, System.Func`1[TResult] localInit, System.Action`1[T] localFinally) [0x001a9] in <8611ac11d22247aabb4fd94490032492>:0 
+--- End of stack trace from previous location where exception was thrown ---
+
+  at System.Threading.Tasks.Parallel.ThrowSingleCancellationExceptionOrOtherException (System.Collections.ICollection exceptions, System.Threading.CancellationToken cancelToken, System.Exception otherException) [0x00010] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Parallel.PartitionerForEachWorker[TSource,TLocal] (System.Collections.Concurrent.Partitioner`1[TSource] source, System.Threading.Tasks.ParallelOptions parallelOptions, System.Action`1[T] simpleBody, System.Action`2[T1,T2] bodyWithState, System.Action`3[T1,T2,T3] bodyWithStateAndIndex, System.Func`4[T1,T2,T3,TResult] bodyWithStateAndLocal, System.Func`5[T1,T2,T3,T4,TResult] bodyWithEverything, System.Func`1[TResult] localInit, System.Action`1[T] localFinally) [0x00212] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Parallel.ForEachWorker[TSource,TLocal] (System.Collections.Generic.IEnumerable`1[T] source, System.Threading.Tasks.ParallelOptions parallelOptions, System.Action`1[T] body, System.Action`2[T1,T2] bodyWithState, System.Action`3[T1,T2,T3] bodyWithStateAndIndex, System.Func`4[T1,T2,T3,TResult] bodyWithStateAndLocal, System.Func`5[T1,T2,T3,T4,TResult] bodyWithEverything, System.Func`1[TResult] localInit, System.Action`1[T] localFinally) [0x00056] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Parallel.ForEach[TSource] (System.Collections.Generic.IEnumerable`1[T] source, System.Action`1[T] body) [0x00022] in <8611ac11d22247aabb4fd94490032492>:0 
+  at SonicRetro.SonLVL.API.LevelData.InitObjectDefinitions () [0x00000] in <2864628989d04c749234658428d5fbd9>:0 
+  at SonicRetro.SonLVL.API.LevelData.LoadLevel (System.String levelname, System.Boolean loadGraphics) [0x00635] in <2864628989d04c749234658428d5fbd9>:0 
+  at SonicRetro.SonLVL.GUI.MainForm.backgroundLevelLoader_DoWork (System.Object sender, System.ComponentModel.DoWorkEventArgs e) [0x00023] in <6eb07344a5d44a459f4e0ce8b5a2daf2>:0 
+---> (Inner Exception #0) System.TypeLoadException: Could not load type of field 'S2ObjectDefinitions.Common.PathSwapper:img' (0) due to: Expected reference type but got type kind 17
+  at System.Reflection.RuntimeConstructorInfo.InternalInvoke (System.Object obj, System.Object[] parameters, System.Boolean wrapExceptions) [0x00039] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.RuntimeType.CreateInstanceMono (System.Boolean nonPublic, System.Boolean wrapExceptions) [0x000b7] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.RuntimeType.CreateInstanceSlow (System.Boolean publicOnly, System.Boolean wrapExceptions, System.Boolean skipCheckThis, System.Boolean fillCache) [0x0000c] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.RuntimeType.CreateInstanceDefaultCtor (System.Boolean publicOnly, System.Boolean skipCheckThis, System.Boolean fillCache, System.Boolean wrapExceptions, System.Threading.StackCrawlMark& stackMark) [0x0002a] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Activator.CreateInstance (System.Type type, System.Boolean nonPublic, System.Boolean wrapExceptions) [0x00040] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Activator.CreateInstance (System.Type type, System.Boolean nonPublic) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Activator.CreateInstance (System.Type type) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at SonicRetro.SonLVL.API.LevelData+<>c.<InitObjectDefinitions>b__98_0 (System.Collections.Generic.KeyValuePair`2[TKey,TValue] group) [0x0016e] in <2864628989d04c749234658428d5fbd9>:0 
+  at System.Threading.Tasks.Parallel+<PartitionerForEachWorker>c__AnonStorey6`2[TSource,TLocal].<>m__1 (System.Collections.IEnumerator& partitionState, System.Int32 timeout, System.Boolean& replicationDelegateYieldedBeforeCompletion) [0x0013f] in <8611ac11d22247aabb4fd94490032492>:0 
+--- End of stack trace from previous location where exception was thrown ---
+
+  at System.Threading.Tasks.Parallel+<PartitionerForEachWorker>c__AnonStorey6`2[TSource,TLocal].<>m__1 (System.Collections.IEnumerator& partitionState, System.Int32 timeout, System.Boolean& replicationDelegateYieldedBeforeCompletion) [0x002f6] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.TaskReplicator+Replica`1[TState].ExecuteAction (System.Boolean& yieldedBeforeCompletion) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.TaskReplicator+Replica.Execute () [0x00029] in <8611ac11d22247aabb4fd94490032492>:0 <---
+
+Opening INI file "/home/toni/Desktop/romhax/s2/NA-2-SW-hack/SonLVL INI Files/SonLVL.ini"...
+Game type is S2NA.
+Loading Chemical Plant Zone Act 2...
+Loading 8x8 tiles from file "../art/nemesis/CPZ primary.bin", using compression Nemesis...
+Loading FG layout from file "../level/layout/CPZ_2.bin", using compression Uncompressed...
+Loading 128x128 chunks from file "../mappings/128x128/CPZ.bin", using compression Uncompressed...
+Loading 16x16 blocks from file "../mappings/16x16/CPZ.bin", using compression Uncompressed...
+Loading BG layout from file "../level/layout/CPZ_BG.bin", using compression Uncompressed...
+Loading FG layout from file "../level/layout/CPZ_1.bin", using compression Uncompressed...
+Loading palette file "../art/palettes/Sonic and Tails.bin"...
+Source: 0 Destination: 0 Length: 16
+Loading palette file "../art/palettes/CPZ.bin"...
+Source: 0 Destination: 16 Length: 48
+Loading objects from file "../level/objects/CPZ_2.bin", using compression Uncompressed...
+Loading rings from file "../level/rings/CPZ_1.bin", using compression Uncompressed...
+Loading start position "Level Start" from file "../startpos/CPZ_2.bin"...
+System.AggregateException: One or more errors occurred. (The given key 'Sonic' was not present in the dictionary.) ---> System.Collections.Generic.KeyNotFoundException: The given key 'Sonic' was not present in the dictionary.
+  at System.Collections.Generic.Dictionary`2[TKey,TValue].get_Item (TKey key) [0x00021] in <8611ac11d22247aabb4fd94490032492>:0 
+  at SonicRetro.SonLVL.API.LevelData.LoadLevelStartPositions (System.Boolean loadGraphics) [0x000f2] in <2864628989d04c749234658428d5fbd9>:0 
+  at SonicRetro.SonLVL.API.LevelData+<>c__DisplayClass66_0.<LoadLevel>b__4 () [0x00000] in <2864628989d04c749234658428d5fbd9>:0 
+  at System.Threading.Tasks.Task.InnerInvoke () [0x00012] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Task.Execute () [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+   --- End of inner exception stack trace ---
+  at System.Threading.Tasks.Task.WaitAll (System.Threading.Tasks.Task[] tasks, System.Int32 millisecondsTimeout, System.Threading.CancellationToken cancellationToken) [0x0023f] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Task.WaitAll (System.Threading.Tasks.Task[] tasks, System.Int32 millisecondsTimeout) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Task.WaitAll (System.Threading.Tasks.Task[] tasks) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Parallel.Invoke (System.Threading.Tasks.ParallelOptions parallelOptions, System.Action[] actions) [0x00301] in <8611ac11d22247aabb4fd94490032492>:0 
+--- End of stack trace from previous location where exception was thrown ---
+
+  at System.Threading.Tasks.Parallel.ThrowSingleCancellationExceptionOrOtherException (System.Collections.ICollection exceptions, System.Threading.CancellationToken cancelToken, System.Exception otherException) [0x00010] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Parallel.Invoke (System.Threading.Tasks.ParallelOptions parallelOptions, System.Action[] actions) [0x00321] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Parallel.Invoke (System.Action[] actions) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at SonicRetro.SonLVL.API.LevelData.LoadLevel (System.String levelname, System.Boolean loadGraphics) [0x0063a] in <2864628989d04c749234658428d5fbd9>:0 
+  at SonicRetro.SonLVL.GUI.MainForm.backgroundLevelLoader_DoWork (System.Object sender, System.ComponentModel.DoWorkEventArgs e) [0x00023] in <6eb07344a5d44a459f4e0ce8b5a2daf2>:0 
+---> (Inner Exception #0) System.Collections.Generic.KeyNotFoundException: The given key 'Sonic' was not present in the dictionary.
+  at System.Collections.Generic.Dictionary`2[TKey,TValue].get_Item (TKey key) [0x00021] in <8611ac11d22247aabb4fd94490032492>:0 
+  at SonicRetro.SonLVL.API.LevelData.LoadLevelStartPositions (System.Boolean loadGraphics) [0x000f2] in <2864628989d04c749234658428d5fbd9>:0 
+  at SonicRetro.SonLVL.API.LevelData+<>c__DisplayClass66_0.<LoadLevel>b__4 () [0x00000] in <2864628989d04c749234658428d5fbd9>:0 
+  at System.Threading.Tasks.Task.InnerInvoke () [0x00012] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Task.Execute () [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 <---
+
+Opening INI file "/home/toni/Desktop/romhax/s2/NA-2-SW-hack/SonLVL INI Files/SonLVL.ini"...
+Game type is S2NA.
+Loading Chemical Plant Zone Act 2...
+Loading 128x128 chunks from file "../mappings/128x128/CPZ.bin", using compression Uncompressed...
+Loading 16x16 blocks from file "../mappings/16x16/CPZ.bin", using compression Uncompressed...
+
+Loading 8x8 tiles from file "../art/nemesis/CPZ primary.bin", using compression Nemesis...
+Loading BG layout from file "../level/layout/CPZ_BG.bin", using compression Uncompressed...
+Loading FG layout from file "../level/layout/CPZ_1.bin", using compression Uncompressed...
+Loading palette file "../art/palettes/Sonic and Tails.bin"...
+Source: 0 Destination: 0 Length: 16
+Loading palette file "../art/palettes/CPZ.bin"...
+Source: 0 Destination: 16 Length: 48
+Loading objects from file "../level/objects/CPZ_2.bin", using compression Uncompressed...
+Loading rings from file "../level/rings/CPZ_2.bin", using compression Uncompressed...
+Drawing block bitmaps...
+Drawing chunk bitmaps...
+Load completed.
+Opening INI file "/home/toni/Desktop/romhax/s2/NA-2-SW-hack/SonLVL INI Files/SonLVL.ini"...
+Game type is S2NA.
+Loading Chemical Plant Zone Act 2...
+Loading 16x16 blocks from file "../mappings/16x16/CPZ.bin", using compression Uncompressed...
+
+Loading FG layout from file "../level/layout/CPZ_2.bin", using compression Uncompressed...
+Loading BG layout from file "../level/layout/CPZ_BG.bin", using compression Uncompressed...
+Loading palette file "../art/palettes/Sonic and Tails.bin"...
+Source: 0 Destination: 0 Length: 16
+Loading palette file "../art/palettes/CPZ.bin"...
+Source: 0 Destination: 16 Length: 48
+Loading 128x128 chunks from file "../mappings/128x128/CPZ.bin", using compression Uncompressed...
+Loading FG layout from file "../level/layout/CPZ_1.bin", using compression Uncompressed...
+Loading object definition file "obj.ini".
+Loading object definition file "obj.ini".
+Loading ObjectDefinition type S2ObjectDefinitions.Common.PathSwapper from "Common/PathSwapper.cs"...
+Loading type from cached assembly "dllcache/S2ObjectDefinitions.Common.PathSwapper.dll"...
+System.AggregateException: One or more errors occurred. (Could not load type of field 'S2ObjectDefinitions.Common.PathSwapper:img' (0) due to: Expected reference type but got type kind 17) ---> System.TypeLoadException: Could not load type of field 'S2ObjectDefinitions.Common.PathSwapper:img' (0) due to: Expected reference type but got type kind 17
+  at System.Reflection.RuntimeConstructorInfo.InternalInvoke (System.Object obj, System.Object[] parameters, System.Boolean wrapExceptions) [0x00039] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.RuntimeType.CreateInstanceMono (System.Boolean nonPublic, System.Boolean wrapExceptions) [0x000b7] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.RuntimeType.CreateInstanceSlow (System.Boolean publicOnly, System.Boolean wrapExceptions, System.Boolean skipCheckThis, System.Boolean fillCache) [0x0000c] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.RuntimeType.CreateInstanceDefaultCtor (System.Boolean publicOnly, System.Boolean skipCheckThis, System.Boolean fillCache, System.Boolean wrapExceptions, System.Threading.StackCrawlMark& stackMark) [0x0002a] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Activator.CreateInstance (System.Type type, System.Boolean nonPublic, System.Boolean wrapExceptions) [0x00040] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Activator.CreateInstance (System.Type type, System.Boolean nonPublic) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Activator.CreateInstance (System.Type type) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at SonicRetro.SonLVL.API.LevelData+<>c.<InitObjectDefinitions>b__98_0 (System.Collections.Generic.KeyValuePair`2[TKey,TValue] group) [0x0016e] in <2864628989d04c749234658428d5fbd9>:0 
+  at System.Threading.Tasks.Parallel+<PartitionerForEachWorker>c__AnonStorey6`2[TSource,TLocal].<>m__1 (System.Collections.IEnumerator& partitionState, System.Int32 timeout, System.Boolean& replicationDelegateYieldedBeforeCompletion) [0x0013f] in <8611ac11d22247aabb4fd94490032492>:0 
+--- End of stack trace from previous location where exception was thrown ---
+
+  at System.Threading.Tasks.Parallel+<PartitionerForEachWorker>c__AnonStorey6`2[TSource,TLocal].<>m__1 (System.Collections.IEnumerator& partitionState, System.Int32 timeout, System.Boolean& replicationDelegateYieldedBeforeCompletion) [0x002f6] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.TaskReplicator+Replica`1[TState].ExecuteAction (System.Boolean& yieldedBeforeCompletion) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.TaskReplicator+Replica.Execute () [0x00029] in <8611ac11d22247aabb4fd94490032492>:0 
+   --- End of inner exception stack trace ---
+  at System.Threading.Tasks.TaskReplicator.Run[TState] (System.Threading.Tasks.TaskReplicator+ReplicatableUserAction`1[TState] action, System.Threading.Tasks.ParallelOptions options, System.Boolean stopOnFirstFailure) [0x0006a] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Parallel.PartitionerForEachWorker[TSource,TLocal] (System.Collections.Concurrent.Partitioner`1[TSource] source, System.Threading.Tasks.ParallelOptions parallelOptions, System.Action`1[T] simpleBody, System.Action`2[T1,T2] bodyWithState, System.Action`3[T1,T2,T3] bodyWithStateAndIndex, System.Func`4[T1,T2,T3,TResult] bodyWithStateAndLocal, System.Func`5[T1,T2,T3,T4,TResult] bodyWithEverything, System.Func`1[TResult] localInit, System.Action`1[T] localFinally) [0x001a9] in <8611ac11d22247aabb4fd94490032492>:0 
+--- End of stack trace from previous location where exception was thrown ---
+
+  at System.Threading.Tasks.Parallel.ThrowSingleCancellationExceptionOrOtherException (System.Collections.ICollection exceptions, System.Threading.CancellationToken cancelToken, System.Exception otherException) [0x00010] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Parallel.PartitionerForEachWorker[TSource,TLocal] (System.Collections.Concurrent.Partitioner`1[TSource] source, System.Threading.Tasks.ParallelOptions parallelOptions, System.Action`1[T] simpleBody, System.Action`2[T1,T2] bodyWithState, System.Action`3[T1,T2,T3] bodyWithStateAndIndex, System.Func`4[T1,T2,T3,TResult] bodyWithStateAndLocal, System.Func`5[T1,T2,T3,T4,TResult] bodyWithEverything, System.Func`1[TResult] localInit, System.Action`1[T] localFinally) [0x00212] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Parallel.ForEachWorker[TSource,TLocal] (System.Collections.Generic.IEnumerable`1[T] source, System.Threading.Tasks.ParallelOptions parallelOptions, System.Action`1[T] body, System.Action`2[T1,T2] bodyWithState, System.Action`3[T1,T2,T3] bodyWithStateAndIndex, System.Func`4[T1,T2,T3,TResult] bodyWithStateAndLocal, System.Func`5[T1,T2,T3,T4,TResult] bodyWithEverything, System.Func`1[TResult] localInit, System.Action`1[T] localFinally) [0x00056] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.Parallel.ForEach[TSource] (System.Collections.Generic.IEnumerable`1[T] source, System.Action`1[T] body) [0x00022] in <8611ac11d22247aabb4fd94490032492>:0 
+  at SonicRetro.SonLVL.API.LevelData.InitObjectDefinitions () [0x00000] in <2864628989d04c749234658428d5fbd9>:0 
+  at SonicRetro.SonLVL.API.LevelData.LoadLevel (System.String levelname, System.Boolean loadGraphics) [0x00635] in <2864628989d04c749234658428d5fbd9>:0 
+  at SonicRetro.SonLVL.GUI.MainForm.backgroundLevelLoader_DoWork (System.Object sender, System.ComponentModel.DoWorkEventArgs e) [0x00023] in <6eb07344a5d44a459f4e0ce8b5a2daf2>:0 
+---> (Inner Exception #0) System.TypeLoadException: Could not load type of field 'S2ObjectDefinitions.Common.PathSwapper:img' (0) due to: Expected reference type but got type kind 17
+  at System.Reflection.RuntimeConstructorInfo.InternalInvoke (System.Object obj, System.Object[] parameters, System.Boolean wrapExceptions) [0x00039] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.RuntimeType.CreateInstanceMono (System.Boolean nonPublic, System.Boolean wrapExceptions) [0x000b7] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.RuntimeType.CreateInstanceSlow (System.Boolean publicOnly, System.Boolean wrapExceptions, System.Boolean skipCheckThis, System.Boolean fillCache) [0x0000c] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.RuntimeType.CreateInstanceDefaultCtor (System.Boolean publicOnly, System.Boolean skipCheckThis, System.Boolean fillCache, System.Boolean wrapExceptions, System.Threading.StackCrawlMark& stackMark) [0x0002a] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Activator.CreateInstance (System.Type type, System.Boolean nonPublic, System.Boolean wrapExceptions) [0x00040] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Activator.CreateInstance (System.Type type, System.Boolean nonPublic) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Activator.CreateInstance (System.Type type) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at SonicRetro.SonLVL.API.LevelData+<>c.<InitObjectDefinitions>b__98_0 (System.Collections.Generic.KeyValuePair`2[TKey,TValue] group) [0x0016e] in <2864628989d04c749234658428d5fbd9>:0 
+  at System.Threading.Tasks.Parallel+<PartitionerForEachWorker>c__AnonStorey6`2[TSource,TLocal].<>m__1 (System.Collections.IEnumerator& partitionState, System.Int32 timeout, System.Boolean& replicationDelegateYieldedBeforeCompletion) [0x0013f] in <8611ac11d22247aabb4fd94490032492>:0 
+--- End of stack trace from previous location where exception was thrown ---
+
+  at System.Threading.Tasks.Parallel+<PartitionerForEachWorker>c__AnonStorey6`2[TSource,TLocal].<>m__1 (System.Collections.IEnumerator& partitionState, System.Int32 timeout, System.Boolean& replicationDelegateYieldedBeforeCompletion) [0x002f6] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.TaskReplicator+Replica`1[TState].ExecuteAction (System.Boolean& yieldedBeforeCompletion) [0x00000] in <8611ac11d22247aabb4fd94490032492>:0 
+  at System.Threading.Tasks.TaskReplicator+Replica.Execute () [0x00029] in <8611ac11d22247aabb4fd94490032492>:0 <---
+

@@ -9,6 +9,18 @@
 ; Processor:	    68000
 ; Target Assembler: 680x0 Assembler in MRI compatible mode
 ; This file should be compiled with "as	-M"
+; Now let's list this hack's messed up zone order so i dont forget it again
+; 0: ghz,  unused
+; 1: mz/cpz, used
+; 2: lz/mtz, used
+; 3: slz/ehz,used
+; 4: syz/hpz,used(only act 1)
+; 5: sbz/htz,used
+; 6: ending/wz,used
+; 7: idk probably ooz im gonna go check; dhz
+; cnz
+; ooz
+; ssz
 
 
 	include	"s2.constants.asm"
@@ -211,6 +223,7 @@ GameInit:
 GameClrRAM:
 		move.l	d7,(a6)+
 		dbf	d6,GameClrRAM
+		jsr (InitDMAQueue).l
 		bsr.w	VDPSetupGame
 		bsr.w	SoundDriverLoad
 		bsr.w	JoypadInit
@@ -232,6 +245,7 @@ GameMode_SpecialStage:	bra.w	SpecialStage	; Special Stage play mode
 ; ===========================================================================
 ; Leftover from Sonic 1, turns the screen red if the checksum check fails
 ChecksumError:
+ jsr (InitDMAQueue).l
 		bsr.w	VDPSetupGame
 		move.l	#$C0000000,(vdp_control_port).l
 		moveq	#$3F,d7
@@ -1261,95 +1275,10 @@ PlaneMapToVRAM_H40_TileLoop:
 		rts
 ; End of function PlaneMapToVRAM_H40
 
-; ---------------------------------------------------------------------------
-; Subroutine for queueing VDP commands (seems to only queue transfers to VRAM),
-; to be issued the next time ProcessDMAQueue is called.
-; Can be called a maximum of 18 times before the buffer needs to be cleared
-; by issuing the commands (this subroutine DOES check for overflow)
-; ---------------------------------------------------------------------------
-
-; ||||||||||||||| S U B R O U T I N E |||||||||||||||||||||||||||||||||||||||
-
-; DMA_68KtoVRAM: QueueCopyToVRAM: QueueVDPCommand: Add_To_DMA_Queue:
-QueueDMATransfer:
-		movea.l	(VDP_Command_Buffer_Slot).w,a1
-		cmpa.w	#VDP_Command_Buffer_Slot,a1
-		beq.s	QueueDMATransfer_Done	; return if there's no more room in the buffer
-
-		; piece together some VDP commands and store them for later...
-		move.w	#$9300,d0	; command to specify DMA transfer length & $00FF
-		move.b	d3,d0
-		move.w	d0,(a1)+	; store command
-
-		move.w	#$9400,d0	; command to specify DMA transfer length & $FF00
-		lsr.w	#8,d3
-		move.b	d3,d0
-		move.w	d0,(a1)+	; store command
-
-		move.w	#$9500,d0	; command to specify source address & $0001FE
-		lsr.l	#1,d1
-		move.b	d1,d0
-		move.w	d0,(a1)+	; store command
-
-		move.w	#$9600,d0	; command to specify source address & $01FE00
-		lsr.l	#8,d1
-		move.b	d1,d0
-		move.w	d0,(a1)+	; store command
-
-		move.w	#$9700,d0	; command to specify source address & $FE0000
-		lsr.l	#8,d1
-		move.b	d1,d0
-		move.w	d0,(a1)+	; store command
-
-		andi.l	#$FFFF,d2	; command to specify destination address and begin DMA
-		lsl.l	#2,d2
-		lsr.w	#2,d2
-		swap	d2
-		ori.l	#$40000080,d2	; set bits to specify VRAM transfer
-		move.l	d2,(a1)+	; store command
-
-		move.l	a1,(VDP_Command_Buffer_Slot).w	; set the next free slot address
-		cmpa.w	#VDP_Command_Buffer_Slot,a1
-		beq.s	QueueDMATransfer_Done	; return if there's no more room in the buffer
-		move.w	#0,(a1)			; put a stop token at the end of the used part of the buffer
-
-QueueDMATransfer_Done:
-		rts
-; End of function QueueDMATransfer
-
-; ---------------------------------------------------------------------------
-; Subroutine for issuing all VDP commands that were queued
-; (by earlier calls to QueueDMATransfer)
-; Resets the queue when it's done
-; ---------------------------------------------------------------------------
-
-; ||||||||||||||| S U B R O U T I N E |||||||||||||||||||||||||||||||||||||||
-
-; CopyToVRAM: IssueVDPCommands: Process_DMA: Process_DMA_Queue:
-ProcessDMAQueue:
-		lea	(vdp_control_port).l,a5
-		lea	(VDP_Command_Buffer).w,a1
-
-ProcessDMAQueue_Loop:
-		move.w	(a1)+,d0
-		beq.s	ProcessDMAQueue_Done	; branch if we reached a stop token
-		; issue a set of VDP commands
-		move.w	d0,(a5)			; transfer length
-		move.w	(a1)+,(a5)		; transfer length
-		move.w	(a1)+,(a5)		; source address
-		move.w	(a1)+,(a5)		; source address
-		move.w	(a1)+,(a5)		; source address
-		move.w	(a1)+,(a5)		; destination
-		move.w	(a1)+,(a5)		; destination
-		cmpa.w	#VDP_Command_Buffer_Slot,a1
-		bne.s	ProcessDMAQueue_Loop	; loop if we haven't reached end of buffer
-
-ProcessDMAQueue_Done:
-		move.w	#0,(VDP_Command_Buffer).w
-		move.l	#VDP_Command_Buffer,(VDP_Command_Buffer_Slot).w
-		rts
-; End of function ProcessDMAQueue
-
+ pusho    ; buffer local label symbol config
+    opt ws+  ; change local label symbol to '.'
+ include "_inc/DMA Queue.asm"
+ popo
 		include "_inc\Nemesis Decompression.asm"
 
 ; ||||||||||||||| S U B R O U T I N E |||||||||||||||||||||||||||||||||||||||
@@ -3622,10 +3551,10 @@ loc_3260:				; CODE XREF: ROM:00003262j
 loc_3270:				; CODE XREF: ROM:00003272j
 		move.l	d0,(a1)+
 		dbf	d1,loc_3270
-		moveq	#3,d0
-		bsr.w	PalLoad1
-		bsr.w	Pal_FadeFromBlack
-		move	#$2700,sr
+;		moveq	#3,d0
+;		bsr.w	PalLoad1
+;		bsr.w	Pal_FadeFromBlack
+;		move	#$2700,sr
 		move.l	#$40000000,(vdp_control_port).l
 		lea	(Nem_TitleOnCrack).l,a0
 		bsr.w	NemDec
@@ -3640,7 +3569,7 @@ loc_3270:				; CODE XREF: ROM:00003272j
 loc_32C4:				; CODE XREF: ROM:000032C6j
 		move.w	(a5)+,(a6)
 		dbf	d1,loc_32C4
-		nop
+;		nop
 		move.b	#0,($FFFFFE30).w
 		move.w	#0,(Debug_placement_mode).w
 		move.w	#0,($FFFFFFF0).w
@@ -3682,9 +3611,11 @@ loc_3330:
 		bsr.w	PalLoad1
 		move.b	#bgm_Title,d0
 		bsr.w	PlaySound_Special
-		move.b	#1,(Debug_mode_flag).w;was 0
+;		move.b	#0,(Debug_mode_flag).w;was 0; and should still be
 		move.w	#0,(Two_player_mode).w
-		move.w	#$178,(Demo_Time_left).w
+		move.b #$01,($FFFFFFE0).w; move 1 to lvl select flag, and debug mode flag; only lvlsel ig...
+		move.b	#1,(Debug_mode_flag).w; i figured out how to enable debug mode lets goo oh wait
+;		move.w	#$178,(Demo_Time_left).w; disable time on title
 		lea	($FFFFB080).w,a1
 		moveq	#0,d0
 		move.w	#$F,d1
@@ -3716,13 +3647,13 @@ TitleScreen_Loop:			; CODE XREF: ROM:0000349Aj
 		bsr.w	Deform_TitleScreen
 		jsr	(BuildSprites).l
 		bsr.w	RunPLC_RAM
-		tst.b	($FFFFFFF8).w
-		bpl.s	Title_RegionJ
-		lea	(LvlSelCode_US).l,a0
-		bra.s	LevelSelectCheat
+;		tst.b	($FFFFFFF8).w
+;		bpl.s	Title_RegionJ
+;		lea	(LvlSelCode_US).l,a0
+;		bra.s	LevelSelectCheat
 ; ---------------------------------------------------------------------------
 
-Title_RegionJ:				; CODE XREF: ROM:00003416j
+;Title_RegionJ:				; CODE XREF: ROM:00003416j
 		lea	(LvlSelCode_J).l,a0
 
 LevelSelectCheat:			; CODE XREF: ROM:0000341Ej
@@ -3768,8 +3699,8 @@ Title_Cheat_CountC:			; CODE XREF: ROM:0000343Ej
 		addq.w	#1,($FFFFFFE6).w
 
 Title_Cheat_NoC:			; CODE XREF: ROM:00003486j;loc_3230:
-		tst.w	(Demo_Time_left).w
-		beq.w	Demo
+;		tst.w	(Demo_Time_left).w
+;		beq.w	Demo
 Title_CheckForB:;New code start here
 		cmpi.b	#$10, ($FFFFF605).w	; has B been pressed?
 		bne.s	StartCheck		; if not, branch
@@ -3922,7 +3853,7 @@ PlayLevel:				; CODE XREF: ROM:000034A2j
 		rts
 ; ---------------------------------------------------------------------------
 LvlSelCode_J:	dc.b   1,  2,  2,  2,  2,  1,  0,$FF; 0	; DATA XREF: ROM:Title_RegionJo
-LvlSelCode_US:	dc.b   1,  2,  2,  2,  2,  1,  0,$FF; 0	; DATA XREF: ROM:00003418o
+;LvlSelCode_US:	dc.b   1,  2,  2,  2,  2,  1,  0,$FF; 0	; DATA XREF: ROM:00003418o
 ; ---------------------------------------------------------------------------
 
 Demo:
@@ -4353,19 +4284,25 @@ loc_3AFC:				; CODE XREF: UnknownSub_4+12j
 		adda.w	#$80,a2	; '€'
 		rts
 ; End of function UnknownSub_4
-
+ even
 ; ---------------------------------------------------------------------------
-		nop
+;		nop
 ; ---------------------------------------------------------------------------
-MusicList:	dc.b bgm_GHZ
-		dc.b bgm_LZ
-		dc.b bgm_MZ
-		dc.b bgm_SLZ
-		dc.b bgm_SYZ
-		dc.b bgm_SBZ
-;		dc.b bgm_GHZ
+MusicList:	dc.b bgm_GHZ;0
+		dc.b bgm_LZ;1
+		dc.b bgm_MZ;2
+		dc.b bgm_SLZ;3
+		dc.b bgm_SYZ;4
+		dc.b bgm_SBZ;5
+		dc.b bgm_GHZ;6
+		dc.b bgm_GHZ;7
+		dc.b bgm_GHZ;8
+		dc.b bgm_GHZ;9
+		dc.b bgm_GHZ;$A
+		dc.b bgm_GHZ;$B
 		dc.b $80;$8D
 		dc.b 0
+		even
 ; ===========================================================================
 ; ---------------------------------------------------------------------------
 ; Level
@@ -4493,13 +4430,14 @@ loc_3C1A:
 
 loc_3C56:
 		move.w	(Hint_counter_reserve).w,(a6)
-		move.l	#VDP_Command_Buffer,(VDP_Command_Buffer_Slot).w
+		ResetDMAQueue
+;		move.l	#VDP_Command_Buffer,(VDP_Command_Buffer_Slot).w
 		tst.b	(Water_flag).w
 		beq.s	LevelInit_NoWater
 		move.w	#$8014,(a6)
 		moveq	#0,d0
-		move.b	(Current_Act).w,d0
-;		subi.w	#$200,d0;#hidden_palace_zone_act_1,d0;CPZ2
+		move.w (Current_Zone).w,d0;b	(Current_Act).w,d0
+		subi.w	#$0101,d0;#hidden_palace_zone_act_1,d0;CPZ2
 ;		add.w	d0,d0
 		ror.b	#1,d0
 		lsr.w	#6,d0
@@ -4556,10 +4494,10 @@ loc_3CDC:
 
 loc_3CE6:
 		lea	MusicList(pc),a1
-		nop
+;		nop
 		move.b	(a1,d0.w),d0
 		bsr.w	PlaySound
-		move.b	#$34,($FFFFB080).w
+		move.b	#$34,($FFFFB080).w; title card id - RT
 
 LevelInit_TitleCard:
 		move.b	#VintID_TitleCard,(Vint_routine).w
@@ -4585,7 +4523,10 @@ loc_3D2A:
 		bsr.w	LoadTilesFromStart
 		jsr	(ApplySonic1Collision).l
 		bsr.w	LoadCollisionIndexes
+		tst.b (Water_flag).w
+		beq.s @nowater
 		bsr.w	WaterEffects
+@nowater:
 		cmpi.b	#$01, ($FFFFFFF9).w	; is the multiple character flag set to $01 (Metal Sonic)?
 		bne.s	SonicLoadObj		; if not, load Sonic's art
 		move.b	#1,($FFFFB000).w;lea	(Art_MetalSonic).l,a1	; load Metal Sonic's art
@@ -4702,13 +4643,14 @@ loc_3E78:
 loc_3EB2:
 		tst.b	(Water_flag).w
 		beq.s	loc_3EC8
+		; water palettes for the water not the underwater player
 		moveq   #$B, D0;#PalID_HPZ_U, D0
 		cmpi.b  #4, (Current_Zone).w;#hidden_palace_zone, (Current_Zone).w
 		beq.s   loc_3EC4;loc_44EE
-		moveq   #$19, D0;#PalID_CPZ_U, D0
+		moveq   #$18, D0;#PalID_CPZ_U, D0
 		cmpi.b  #2, (Current_Zone).w;#chemical_plant_zone, (Current_Zone).w
 		beq.s   loc_3EC4;loc_44EE
-		moveq   #$18, D0;#PalID_NGHZ_U, D0
+		moveq   #$19, D0;#PalID_NGHZ_U, D0
 ;		moveq	#$B,d0
 ;		cmpi.b	#3,(Current_Act).w
 ;		bne.s	loc_3EC4
@@ -4754,34 +4696,41 @@ Level_MainLoop:
 		move.b	#VintID_Level,(Vint_routine).w
 		bsr.w	WaitForVint
 		addq.w	#1,($FFFFFE04).w
-		bsr.w	MoveSonicInDemo
-		bsr.w	WaterEffects
+;		bsr.w	MoveSonicInDemo
+;		bsr.w	WaterEffects
+ jsr	(ObjectsManager).l
 		jsr	(RunObjects).l
 		tst.w	($FFFFFE02).w
 		bne.w	Level
-		tst.w	(Debug_placement_mode).w
-		bne.s	loc_3F50
-		cmpi.b	#6,($FFFFB000+routine).w
-		bcc.s	loc_3F54
+;		tst.w	(Debug_placement_mode).w
+;		bne.s	loc_3F50
+;		cmpi.b	#6,($FFFFB000+routine).w
+;		bcc.s	loc_3F54
 
-loc_3F50:
+;loc_3F50:
+	;	jsr (DeformBGLayer).l;
 		bsr.w	DeformBGLayer
 
-loc_3F54:
+;loc_3F54:
+; both of these can share one water level check
+ tst.b (Water_flag).w
+ beq.s @nowaterstuff
+ bsr.w	WaterEffects
 		bsr.w	ChangeWaterSurfacePos
+@nowaterstuff:
 		jsr	(RingsManager).l
-		bsr.w	j_AniArt_Load
 		bsr.w	PalCycle_Load
+		jsr (AniArt_Load).l;bsr.w	j_AniArt_Load
 		bsr.w	RunPLC_RAM
 		bsr.w	OscillateNumDo
 		bsr.w	ChangeRingFrame
-		bsr.w	SignpostArtLoad
-		jsr	(BuildSprites).l
-		jsr	(ObjectsManager).l
+		bsr.w	SignpostArtLoad; only gets used in ehz and cpz well find something better to use instead
+		jsr	(BuildSprites).l; last thing like it is in sce why not
+;		jsr	(ObjectsManager).l
+		cmpi.b	#GameModeID_Level,(Game_Mode).w
+		beq.s	Level_MainLoop
 		cmpi.b	#GameModeID_Demo,(Game_Mode).w
 		beq.s	loc_3F96
-		cmpi.b	#GameModeID_Level,(Game_Mode).w
-		beq.w	Level_MainLoop
 		rts
 ; ---------------------------------------------------------------------------
 
@@ -4830,8 +4779,8 @@ loc_400E:
 
 
 ChangeWaterSurfacePos:			; CODE XREF: ROM:loc_3F54p
-		tst.b	(Water_flag).w
-		beq.s	locret_403E
+;		tst.b	(Water_flag).w
+;		beq.s	locret_403E
 		move.w	($FFFFEE00).w,d1
 		btst	#0,($FFFFFE05).w
 		beq.s	loc_402C
@@ -4854,8 +4803,8 @@ locret_403E:				; CODE XREF: ChangeWaterSurfacePos+4j
 
 WaterEffects:				; CODE XREF: ROM:00003D56p
 					; ROM:00003F30p
-		tst.b	(Water_flag).w
-		beq.s	locret_4094
+;		tst.b	(Water_flag).w
+;		beq.s	locret_4094
 		tst.b	($FFFFEEDC).w
 		bne.s	loc_4058
 		cmpi.b	#6,($FFFFB000+routine).w
@@ -4894,39 +4843,70 @@ loc_4090:				; CODE XREF: WaterEffects+4Aj
 locret_4094:				; CODE XREF: WaterEffects+4j
 		rts
 ; End of function WaterEffects
+ even
 
 ; ---------------------------------------------------------------------------
 WaterHeight:
-			dc.w  $600, $710;, $900, $228;CPZ
-			dc.w  $600, $328;hpz
-			dc.w  $600, $600;ehz
-			dc.w  $600, $600;htz
-			dc.w  $600, $600;wz
-			dc.w  $600, $600;dhz
-			dc.w  $600, $600;cnz
-			dc.w  $600, $600;OOZ
-			dc.w  $410, $510;NGHZ
+ dc.w  $600,$600;cpz2,hpz1;$710	; GHZ
+	dc.w  $710,$600;$600,$710	; CPZ2 AND HPZ1 IT WORKS TRUST; ok maybe just cpz2 and mtz1
+	dc.w  $600,$600	; MTZ; mtz2,ehz1
+	dc.w  $600,$600	; EHZ;ehz2,hpz1
+	dc.w  $600,$600	; HPZ;hpz2,htz1
+	dc.w  $600,$600	; HTZ;htz2,wz1
+	dc.w  $600,$600	; WZ;wz2,dhz1
+	dc.w  $600,$600	; DHZ;dhz2,cnz1
+	dc.w  $600,$410	; CNZ;cnz2,ooz1
+	dc.w  $510,$600	; OOZ;ooz2,nghz1
+	dc.w  $600,$600	; NGHZ;nghz2,ssz1
+	dc.w  $600,$600	; SSZ;ssz2, something
+;	dc.w  $600,$600	; CNZ
+;	dc.w  $600,$710	; CPZ
+;	dc.w  $600,$600	; GCZ
+;	dc.w  $410,$510	; NGHZ
+;	dc.w  $600,$600	; DEZ
+;			dc.w  $600, $710;, $900, $228;CPZ
+;			dc.w  $600, $328;hpz
+;			dc.w  $600, $600;ehz
+;			dc.w  $600, $600;htz
+;			dc.w  $600, $600;wz
+;			dc.w  $600, $600;dhz
+;			dc.w  $600, $600;cnz
+;			dc.w  $600, $600;OOZ
+;			dc.w  $410, $510;NGHZ
 ;	dc.w  $600, $600, $600, $600;GHZ
 ;				dc.w  $600, $710, $900, $228;CPZ
 ;				dc.w  $600, $710, $900, $228;MTZ
-;				dc.w  $600, $328, $900,	$228; 0	; DATA XREF: ROM:00003C74o;HPZ
-;				dc.w  $600, $710, $600, $600;EHZ?
+;				dc.w  $600, $328, $900,	$228; 0	; DATA XREF: ROM:00003C74o;EHZ
+;				dc.w  $600, $710, $600, $600;HPZ
 ;				dc.w  $600, $710, $600, $600;HTZ
 ;				dc.w  $600, $710, $600, $600;wz
 ;				dc.w  $600, $710, $600, $600;dhz
 ;				dc.w  $600, $710, $600, $600;cnz
-;				dc.w  $600, $600, $600, $600;ooz?
-;				dc.w  $410, $510, $600, $600
+;				dc.w  $600, $600, $600, $600;ooz
+;				dc.w  $410, $510, $600, $600;nghz
+;				dc.w  $600, $600, $600, $600;ssz
+				even
 
 ; =============== S U B	R O U T	I N E =======================================
 
 
 DynamicWaterHeight:			; CODE XREF: WaterEffects+14p
+; rts
 		moveq	#0,d0
-		move.b	(Current_Act).w,d0
-		add.w	d0,d0
+		move.w (Current_Zone).w,d0
+;		move.b	(Current_Act).w,d0; this should be changed to current zone, and maybe the whole thing needs to be made to work with full zones
+		subi.w	#$0101,d0
+;		add.w	d0,d0
+ ror.b	#1,d0
+		lsr.w	#6,d0
+		andi.w	#$FFFE,d0
+
 		move.w	DynWater_Index(pc,d0.w),d0
 		jsr	DynWater_Index(pc,d0.w)
+; cmpi.w #$0101,(Current_Zone).w; cant believe i was checking for cpz1 for a while
+; bne.s @notcpz2;beq.w DynamicWater_CPZ2
+; bsr.w DynamicWater_CPZ2; this is so that it continues after loading the water routne
+;@notcpz2
 		moveq	#0,d1
 		move.b	($FFFFF64C).w,d1
 		move.w	($FFFFF64A).w,d0
@@ -4941,13 +4921,68 @@ loc_40C2:				; CODE XREF: DynamicWaterHeight+20j
 locret_40C6:				; CODE XREF: DynamicWaterHeight+1Ej
 		rts
 ; End of function DynamicWaterHeight
-
+ even
 ; ---------------------------------------------------------------------------
-DynWater_Index:	dc.w DynWater_HPZ1-DynWater_Index; 0 ; DATA XREF: ROM:DynWater_Indexo
-					; ROM:DynWater_Index+2o ...
-		dc.w DynWater_HPZ2-DynWater_Index; 1 ; leftover	from Sonic 1's LZ2
-		dc.w DynWater_HPZ3-DynWater_Index; 2
-		dc.w DynWater_HPZ4-DynWater_Index; 3
+DynWater_Index:
+ dc.w DynamicWater_Null-DynWater_Index ; GHZ 1
+	dc.w DynamicWater_Null-DynWater_Index ; GHZ 2
+	dc.w DynamicWater_CPZ2-DynWater_Index ; OWZ 1
+	dc.w DynamicWater_Null-DynWater_Index;DynamicWater_CPZ2;DynamicWater_Null ; OWZ 2; real cpz2; wrong, its 1 higher
+	dc.w DynamicWater_Null-DynWater_Index ; WZ 1;mtz2
+	dc.w DynWater_HPZ1-DynWater_Index ; WZ 2;hpz1
+	dc.w DynamicWater_Null-DynWater_Index ; SSZ 1;ehz2;hpz2
+	dc.w DynamicWater_Null-DynWater_Index ; SSZ 2;hpz1;htz1
+	dc.w DynamicWater_Null-DynWater_Index ; MTZ 1;hpz2;htz2
+	dc.w DynamicWater_Null-DynWater_Index ; MTZ 2;wz1
+	dc.w DynamicWater_Null-DynWater_Index ; MTZ 3;wz2
+	dc.w DynamicWater_Null-DynWater_Index ; MTZ 4;dhz1
+	dc.w DynamicWater_Null-DynWater_Index ; BLZ 1;dhz2
+	dc.w DynamicWater_Null-DynWater_Index ; BLZ 2;cnz1
+	dc.w DynamicWater_Null-DynWater_Index ; HTZ 1;cnz2
+	dc.w DynamicWater_Null-DynWater_Index ; HTZ 2;ooz1
+	dc.w DynamicWater_Null-DynWater_Index ; HPZ 1;ooz2
+	dc.w DynamicWater_Null-DynWater_Index ; HPZ 2;nghz1
+	dc.w DynamicWater_Null-DynWater_Index ; RWZ 1;nghz2
+	dc.w DynamicWater_Null-DynWater_Index ; RWZ 2;ssz1
+	dc.w DynamicWater_Null-DynWater_Index ; OOZ 1;ssz2
+	dc.w DynamicWater_Null-DynWater_Index ; OOZ 2
+	dc.w DynamicWater_Null-DynWater_Index ; DHZ 1
+	dc.w DynamicWater_Null-DynWater_Index ; DHZ 2
+;	dc.w DynamicWater_Null ; CNZ 1
+;	dc.w DynamicWater_Null ; CNZ 2; zone B, ssz
+;	dc.w DynamicWater_Null ; CPZ 1
+;	dc.w DynamicWater_Null ; CPZ 2
+;	dc.w DynamicWater_Null ; GCZ 1
+;	dc.w DynamicWater_Null ; GCZ 2
+;	dc.w DynamicWater_Null ; NGHZ 1
+;	dc.w DynamicWater_Null ; NGHZ 2
+;	dc.w DynamicWater_Null ; DEZ 1
+;	dc.w DynamicWater_Null ; DEZ 2
+; even
+DynamicWater_Null:
+ rts
+;even
+Water_Level_3 = $FFFFF64A;maybe level 1 will work?
+DynamicWater_CPZ2:
+; extra logic required for this to work in na:
+
+;@loc_40E2:
+ move.w	($FFFFEE00).w,d0
+		cmpi.w	#$1DE0,d0
+;		cmpi.w	#$1DE0,(Camera_X_pos).w
+		bcs.s return_473C;cs.s	return_473C; kinda like a blo/bls
+		cmpi.w #$510,(Water_Level_3).w;did we reach the right water position
+		beq.s	return_473C; if not, decrease and wait
+		subq.w	#1,($FFFFF64A).w; if not, raise it higher
+;		move.w	#$510,(Water_Level_3).w
+
+return_473C:
+		rts
+;dc.w DynWater_HPZ1-DynWater_Index; 0 ; DATA XREF: ROM:DynWater_Indexo
+;					; ROM:DynWater_Index+2o ...
+;		dc.w DynWater_HPZ2-DynWater_Index; 1 ; leftover	from Sonic 1's LZ2
+;		dc.w DynWater_HPZ3-DynWater_Index; 2
+;		dc.w DynWater_HPZ4-DynWater_Index; 3
 ; ---------------------------------------------------------------------------
 
 DynWater_HPZ1:				; DATA XREF: ROM:DynWater_Indexo
@@ -6663,7 +6698,10 @@ BgScroll_S1Ending:			; DATA XREF: ROM:BgScroll_Indexo
 		rts
 
 ; =============== S U B	R O U T	I N E =======================================
-
+; even
+; dc.b 0,0,0,0,0
+; even
+ align 8
 
 DeformBGLayer:				; CODE XREF: ROM:00003D34p
 					; ROM:loc_3F50p
@@ -9389,21 +9427,21 @@ MainLevelLoadBlock:			; CODE XREF: ROM:00003D3Ep
 		move.l	a2,-(sp)
 		addq.l	#4,a2
 		movea.l	(a2)+,a0
-		tst.b	(Current_Zone).w
-		beq.s	MainLevelLoadBlock_Convert16
-		bra.s	MainLevelLoadBlock_Convert16
+;		tst.b	(Current_Zone).w
+;		beq.s	MainLevelLoadBlock_Convert16
+;		bra.s	MainLevelLoadBlock_Convert16
 ; ---------------------------------------------------------------------------
 
-MainLevelLoadBlock_Skip16Convert:	; leftover from	a previous build
-		lea	($FFFF9000).w,a1
-		move.w	#0,d0
-		bsr.w	EniDec
-		bra.s	loc_72C2
+;MainLevelLoadBlock_Skip16Convert:	; leftover from	a previous build
+;		lea	($FFFF9000).w,a1
+;		move.w	#0,d0
+;		bsr.w	EniDec
+;		bra.s	loc_72C2
 ; ---------------------------------------------------------------------------
 
-MainLevelLoadBlock_Convert16:		; CODE XREF: MainLevelLoadBlock+1Cj
+;MainLevelLoadBlock_Convert16:		; CODE XREF: MainLevelLoadBlock+1Cj
 					; MainLevelLoadBlock+1Ej
-		lea	($FFFF9000).w,a1
+		lea	($FFFF9000).w,a1;block table
 		move.w	#$BFF,d2
 
 MainLevelLoadBlock_ConvertLoop:		; CODE XREF: MainLevelLoadBlock+4Ej
@@ -9443,29 +9481,31 @@ loc_72EE:				; CODE XREF: MainLevelLoadBlock+6Ej
 
 loc_72F4:				; CODE XREF: MainLevelLoadBlock+58j
 		movea.l	(a2)+,a0
-		cmpi.b	#1,(Current_Zone).w
-		beq.s	loc_7338
-		cmpi.b	#2,(Current_Zone).w
-		beq.s	loc_7338
-		cmpi.b	#3,(Current_Zone).w
-		beq.s	loc_7338
-		cmpi.b	#4,(Current_Zone).w
-		beq.s	loc_7338
-		cmpi.b	#5,(Current_Zone).w
-		beq.s	loc_7338
-		cmpi.b	#6,(Current_Zone).w
-		beq.s	loc_7338
-		cmpi.b	#7,(Current_Zone).w
-		beq.s	loc_7338
-		cmpi.b	#8,(Current_Zone).w
-		beq.s	loc_7338
-		cmpi.b	#9,(Current_Zone).w
-		beq.s	loc_7338
-		cmpi.b	#$A,(Current_Zone).w
-		beq.s	loc_7338
-		cmpi.b	#$B,(Current_Zone).w
-		beq.s	loc_7338
-		move.l	a2,-(sp)
+		tst.b (Current_Zone).w
+		bne.s loc_7338
+;;		cmpi.b	#1,(Current_Zone).w; huh, neat
+;		beq.s	loc_7338; cant believe i was using uncompressed chunks here...
+;		cmpi.b	#2,(Current_Zone).w
+;		beq.s	loc_7338
+;		cmpi.b	#3,(Current_Zone).w
+;		beq.s	loc_7338
+;		cmpi.b	#4,(Current_Zone).w
+;		beq.s	loc_7338
+;		cmpi.b	#5,(Current_Zone).w
+;		beq.s	loc_7338
+;		cmpi.b	#6,(Current_Zone).w
+;		beq.s	loc_7338
+;		cmpi.b	#7,(Current_Zone).w
+;		beq.s	loc_7338
+;		cmpi.b	#8,(Current_Zone).w
+;		beq.s	loc_7338
+;		cmpi.b	#9,(Current_Zone).w
+;		beq.s	loc_7338
+;		cmpi.b	#$A,(Current_Zone).w
+;		beq.s	loc_7338
+;		cmpi.b	#$B,(Current_Zone).w
+;		beq.s	loc_7338
+		move.l	a2,-(sp); store a2 to the "stack pointer"
 		moveq	#0,d1
 		moveq	#0,d2
 		move.w	(a0)+,d0
@@ -9477,13 +9517,13 @@ loc_732C:				; CODE XREF: MainLevelLoadBlock+C2j
 		bsr.w	ChaDec
 		tst.w	d0
 		bmi.s	loc_732C
-		movea.l	(sp)+,a2
+		movea.l	(sp)+,a2; restore a2 to its previous value from before it got set by the ghz chunk converter
 		bra.s	loc_7348
 ; ---------------------------------------------------------------------------
 
 loc_7338:				; CODE XREF: MainLevelLoadBlock+8Cj
 					; MainLevelLoadBlock+94j ...
-		lea	($FFFF0000).l,a1
+		lea	($FFFF0000).l,a1; yay, uncompressed!!!!!! my favorite waste of space!!!
 		move.w	#$3FFF,d0
 
 loc_7342:				; CODE XREF: MainLevelLoadBlock+D4j
@@ -9494,16 +9534,20 @@ loc_7348:				; CODE XREF: MainLevelLoadBlock+C6j
 		bsr.w	LevelLayoutLoad
 		move.w	(a2)+,d0
 		move.w	(a2),d0
-		andi.w	#$FF,d0
-		cmpi.w	#$103,(Current_ZoneAndAct).w
-		bne.s	loc_735E
-		moveq	#$C,d0
+		andi.w	#$FF,d0; think this is practically useless
+;		cmpi.w	#$103,(Current_ZoneAndAct).w; are we in lz4(in s1 sbz3)?
+;		bne.s	loc_735E; if not, check for htz2&3
+;		moveq	#$C,d0
 
 loc_735E:				; CODE XREF: MainLevelLoadBlock+EAj
-		cmpi.w	#$501,(Current_ZoneAndAct).w
-		beq.s	loc_736E
-		cmpi.w	#$502,(Current_ZoneAndAct).w
-		bne.s	loc_7370
+ cmpi.b #5,(Current_Zone).w; think this is more optimized
+ bne.s loc_7370
+ tst.b (Current_Act).w
+ beq.s loc_7370
+;		cmpi.w	#$501,(Current_ZoneAndAct).w
+;		beq.s	loc_736E
+;		cmpi.w	#$502,(Current_ZoneAndAct).w
+;		bne.s	loc_7370
 
 loc_736E:				; CODE XREF: MainLevelLoadBlock+F4j
 		moveq	#$E,d0
@@ -9511,7 +9555,7 @@ loc_736E:				; CODE XREF: MainLevelLoadBlock+F4j
 loc_7370:				; CODE XREF: MainLevelLoadBlock+FCj
 		bsr.w	PalLoad1
 		movea.l	(sp)+,a2
-		addq.w	#4,a2
+		addq.w	#4,a2; skip a value or two
 		moveq	#0,d0
 		move.b	(a2),d0
 		beq.s	locret_7382
@@ -9542,7 +9586,7 @@ loc_738E:
 		moveq	#0,d1
 		bsr.w	LevelLayoutLoad2
 		lea	($FFFF8080).w,a3	; load background into RAM
-		moveq	#2,d1
+		moveq	#2,d1; this tells it wether to load the fg or bg, and the ram address tells it where to load them
 
 LevelLayoutLoad2:
 		tst.b	(Current_Zone).w
@@ -9737,844 +9781,8 @@ loc_750E:				; CODE XREF: sub_750C+12j
 
 ; =============== S U B	R O U T	I N E =======================================
 
-
-DynScreenResizeLoad:			; CODE XREF: DeformBGLayer:loc_5B2Ap
-		moveq	#0,d0
-		move.b	(Current_Zone).w,d0
-		add.w	d0,d0
-		move.w	DynResize_Index(pc,d0.w),d0
-		jsr	DynResize_Index(pc,d0.w)
-		moveq	#2,d1
-		move.w	($FFFFEEC6).w,d0
-		sub.w	($FFFFEECE).w,d0
-		beq.s	locret_756A
-		bcc.s	loc_756C
-		neg.w	d1
-		move.w	($FFFFEE04).w,d0
-		cmp.w	($FFFFEEC6).w,d0
-		bls.s	loc_7560
-		move.w	d0,($FFFFEECE).w
-		andi.w	#$FFFE,($FFFFEECE).w
-
-loc_7560:				; CODE XREF: DynScreenResizeLoad+28j
-		add.w	d1,($FFFFEECE).w
-		move.b	#1,($FFFFEEDE).w
-
-locret_756A:				; CODE XREF: DynScreenResizeLoad+1Aj
-		rts
-; ---------------------------------------------------------------------------
-
-loc_756C:				; CODE XREF: DynScreenResizeLoad+1Cj
-		move.w	($FFFFEE04).w,d0
-		addi.w	#8,d0
-		cmp.w	($FFFFEECE).w,d0
-		bcs.s	loc_7586
-		btst	#1,($FFFFB022).w
-		beq.s	loc_7586
-		add.w	d1,d1
-		add.w	d1,d1
-
-loc_7586:				; CODE XREF: DynScreenResizeLoad+4Cj
-					; DynScreenResizeLoad+54j
-		add.w	d1,($FFFFEECE).w
-		move.b	#1,($FFFFEEDE).w
-		rts
-; End of function DynScreenResizeLoad
-
-; ---------------------------------------------------------------------------
-DynResize_Index:dc.w DynResize_GHZ-DynResize_Index; 0 ;	DATA XREF: ROM:DynResize_Indexo
-					; ROM:DynResize_Index+2o ...
-		dc.w DynResize_LZ-DynResize_Index; 1
-		dc.w DynResize_CPZ-DynResize_Index; 2
-		dc.w DynResize_EHZ-DynResize_Index; 3
-		dc.w DynResize_HPZ-DynResize_Index; 4
-		dc.w DynResize_HTZ-DynResize_Index; 5
-		dc.w DynResize_S1Ending-DynResize_Index; 6
-		dc.w DynResize_CPZ-DynResize_Index; 6;DynResize_CPZ-DynResize_Index
-		dc.w DynResize_CPZ-DynResize_Index; 7
-		dc.w DynResize_CPZ-DynResize_Index; 8
-		dc.w DynResize_CPZ-DynResize_Index; 9
-		dc.w DynResize_CPZ-DynResize_Index; A
-		dc.w DynResize_CPZ-DynResize_Index; B
-; ---------------------------------------------------------------------------
-
-DynResize_GHZ:				; DATA XREF: ROM:DynResize_Indexo
-		moveq	#0,d0
-		move.b	(Current_Act).w,d0
-		add.w	d0,d0
-		move.w	DynResize_GHZ_Index(pc,d0.w),d0
-		jmp	DynResize_GHZ_Index(pc,d0.w)
-; ---------------------------------------------------------------------------
-DynResize_GHZ_Index:dc.w DynResize_GHZ1-DynResize_GHZ_Index; 0
-					; DATA XREF: ROM:DynResize_GHZ_Indexo
-					; ROM:DynResize_GHZ_Index+2o ...
-		dc.w DynResize_GHZ2-DynResize_GHZ_Index; 1
-		dc.w DynResize_GHZ3-DynResize_GHZ_Index; 2
-; ---------------------------------------------------------------------------
-
-DynResize_GHZ1:				; DATA XREF: ROM:DynResize_GHZ_Indexo
-		move.w	#$300,($FFFFEEC6).w
-		cmpi.w	#$1780,($FFFFEE00).w
-		bcs.s	locret_75CA
-		move.w	#$400,($FFFFEEC6).w
-
-locret_75CA:				; CODE XREF: ROM:000075C2j
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_GHZ2:				; DATA XREF: ROM:DynResize_GHZ_Indexo
-		move.w	#$300,($FFFFEEC6).w
-		cmpi.w	#$ED0,($FFFFEE00).w
-		bcs.s	locret_75FC
-		move.w	#$200,($FFFFEEC6).w
-		cmpi.w	#$1600,($FFFFEE00).w
-		bcs.s	locret_75FC
-		move.w	#$400,($FFFFEEC6).w
-		cmpi.w	#$1D60,($FFFFEE00).w
-		bcs.s	locret_75FC
-		move.w	#$300,($FFFFEEC6).w
-
-locret_75FC:				; CODE XREF: ROM:000075D8j
-					; ROM:000075E6j ...
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_GHZ3:				; DATA XREF: ROM:DynResize_GHZ_Indexo
-		moveq	#0,d0
-		move.b	($FFFFEEDF).w,d0
-		move.w	DynResize_GHZ3_Index(pc,d0.w),d0
-		jmp	DynResize_GHZ3_Index(pc,d0.w)
-; ---------------------------------------------------------------------------
-DynResize_GHZ3_Index:dc.w DynResize_GHZ3_Main-DynResize_GHZ3_Index; 0
-					; DATA XREF: ROM:DynResize_GHZ3_Indexo
-					; ROM:DynResize_GHZ3_Index+2o ...
-		dc.w DynResize_GHZ3_Boss-DynResize_GHZ3_Index; 1
-		dc.w DynResize_GHZ3_End-DynResize_GHZ3_Index; 2
-; ---------------------------------------------------------------------------
-
-DynResize_GHZ3_Main:			; DATA XREF: ROM:DynResize_GHZ3_Indexo
-		move.w	#$300,($FFFFEEC6).w
-		cmpi.w	#$380,($FFFFEE00).w
-		bcs.s	locret_7658
-		move.w	#$310,($FFFFEEC6).w
-		cmpi.w	#$960,($FFFFEE00).w
-		bcs.s	locret_7658
-		cmpi.w	#$280,($FFFFEE04).w
-		bcs.s	loc_765A
-		move.w	#$400,($FFFFEEC6).w
-		cmpi.w	#$1380,($FFFFEE00).w
-		bcc.s	loc_7650
-		move.w	#$4C0,($FFFFEEC6).w
-		move.w	#$4C0,($FFFFEECE).w
-
-loc_7650:				; CODE XREF: ROM:00007642j
-		cmpi.w	#$1700,($FFFFEE00).w
-		bcc.s	loc_765A
-
-locret_7658:				; CODE XREF: ROM:0000761Ej
-					; ROM:0000762Cj
-		rts
-; ---------------------------------------------------------------------------
-
-loc_765A:				; CODE XREF: ROM:00007634j
-					; ROM:00007656j
-		move.w	#$300,($FFFFEEC6).w
-		addq.b	#2,($FFFFEEDF).w
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_GHZ3_Boss:			; DATA XREF: ROM:DynResize_GHZ3_Indexo
-		cmpi.w	#$960,($FFFFEE00).w
-		bcc.s	loc_7672
-		subq.b	#2,($FFFFEEDF).w
-
-loc_7672:				; CODE XREF: ROM:0000766Cj
-		cmpi.w	#$2960,($FFFFEE00).w
-		bcs.s	locret_76AA
-		bsr.w	SingleObjLoad
-		bne.s	loc_7692
-		move.b	#$3D,0(a1) ; '='
-		move.w	#$2A60,8(a1)
-		move.w	#$280,$C(a1)
-
-loc_7692:				; CODE XREF: ROM:0000767Ej
-		move.w	#bgm_Boss,d0
-		bsr.w	PlaySound
-		move.b	#1,($FFFFF7AA).w
-		addq.b	#2,($FFFFEEDF).w
-		moveq	#$11,d0
-		bra.w	LoadPLC
-; ---------------------------------------------------------------------------
-
-locret_76AA:				; CODE XREF: ROM:00007678j
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_GHZ3_End:			; DATA XREF: ROM:DynResize_GHZ3_Indexo
-		move.w	($FFFFEE00).w,($FFFFEEC8).w
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_LZ:				; DATA XREF: ROM:DynResize_Indexo
-		moveq	#0,d0
-		move.b	(Current_Act).w,d0
-		add.w	d0,d0
-		move.w	DynResize_LZ_Index(pc,d0.w),d0
-		jmp	DynResize_LZ_Index(pc,d0.w)
-; ---------------------------------------------------------------------------
-DynResize_LZ_Index:dc.w	DynResize_LZ_Null-DynResize_LZ_Index; 0
-					; DATA XREF: ROM:DynResize_LZ_Indexo
-					; ROM:DynResize_LZ_Index+2o ...
-		dc.w DynResize_LZ_Null-DynResize_LZ_Index; 1
-		dc.w DynResize_LZ3-DynResize_LZ_Index; 2
-		dc.w DynResize_LZ4-DynResize_LZ_Index; 3
-; ---------------------------------------------------------------------------
-
-DynResize_LZ_Null:			; DATA XREF: ROM:DynResize_LZ_Indexo
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_LZ3:				; DATA XREF: ROM:DynResize_LZ_Indexo
-		tst.b	($FFFFF7EF).w
-		beq.s	loc_76EA
-		lea	($FFFF8206).w,a1
-		cmpi.b	#7,(a1)
-		beq.s	loc_76EA
-		move.b	#7,(a1)
-		move.w	#$B7,d0	; '·'
-		bsr.w	PlaySound_Special
-
-loc_76EA:				; CODE XREF: ROM:000076D2j
-					; ROM:000076DCj
-		tst.b	($FFFFEEDF).w
-		bne.s	locret_7726
-		cmpi.w	#$1CA0,($FFFFEE00).w
-		bcs.s	locret_7724
-		cmpi.w	#$600,($FFFFEE04).w
-		bcc.s	locret_7724
-		bsr.w	SingleObjLoad
-		bne.s	loc_770C
-		move.b	#$77,0(a1) ; 'w'
-
-loc_770C:				; CODE XREF: ROM:00007704j
-		move.w	#bgm_Boss,d0
-		bsr.w	PlaySound
-		move.b	#1,($FFFFF7AA).w
-		addq.b	#2,($FFFFEEDF).w
-		moveq	#$11,d0
-		bra.w	LoadPLC
-; ---------------------------------------------------------------------------
-
-locret_7724:				; CODE XREF: ROM:000076F6j
-					; ROM:000076FEj
-		rts
-; ---------------------------------------------------------------------------
-
-locret_7726:				; CODE XREF: ROM:000076EEj
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_LZ4:				; DATA XREF: ROM:DynResize_LZ_Indexo
-		cmpi.w	#$D00,($FFFFEE00).w
-		bcs.s	locret_774E
-		cmpi.w	#$18,($FFFFB00C).w
-		bcc.s	locret_774E
-		clr.b	($FFFFFE30).w
-		move.w	#1,($FFFFFE02).w
-		move.w	#$502,(Current_ZoneAndAct).w
-		move.b	#1,($FFFFF7C8).w
-
-locret_774E:				; CODE XREF: ROM:0000772Ej
-					; ROM:00007736j
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_CPZ:				; DATA XREF: ROM:DynResize_Indexo
-		moveq	#0,d0
-		move.b	(Current_Act).w,d0
-		add.w	d0,d0
-		move.w	DynResize_CPZ_Index(pc,d0.w),d0
-		jmp	DynResize_CPZ_Index(pc,d0.w)
-; ---------------------------------------------------------------------------
-DynResize_CPZ_Index:dc.w DynResize_CPZ1-DynResize_CPZ_Index
-		dc.w DynResize_CPZ2-DynResize_CPZ_Index
-		dc.w DynResize_CPZ3-DynResize_CPZ_Index
-; ---------------------------------------------------------------------------
-
-DynResize_CPZ1:				; DATA XREF: ROM:DynResize_CPZ_Indexo
-		rts
-; ---------------------------------------------------------------------------
-
-S1DynResize_MZ1:			; leftover from	Sonic 1
-		moveq	#0,d0
-		move.b	($FFFFEEDF).w,d0
-		move.w	off_7776(pc,d0.w),d0
-		jmp	off_7776(pc,d0.w)
-; ---------------------------------------------------------------------------
-off_7776:	dc.w loc_777E-off_7776	; 0 ; DATA XREF: ROM:off_7776o
-					; ROM:off_7776+2o ...
-		dc.w loc_77AE-off_7776	; 1
-		dc.w loc_77F2-off_7776	; 2
-		dc.w loc_781C-off_7776	; 3
-; ---------------------------------------------------------------------------
-
-loc_777E:				; DATA XREF: ROM:off_7776o
-		move.w	#$1D0,($FFFFEEC6).w
-		cmpi.w	#$700,($FFFFEE00).w
-		bcs.s	locret_77AC
-		move.w	#$220,($FFFFEEC6).w
-		cmpi.w	#$D00,($FFFFEE00).w
-		bcs.s	locret_77AC
-		move.w	#$340,($FFFFEEC6).w
-		cmpi.w	#$340,($FFFFEE04).w
-		bcs.s	locret_77AC
-		addq.b	#2,($FFFFEEDF).w
-
-locret_77AC:				; CODE XREF: ROM:0000778Aj
-					; ROM:00007798j ...
-		rts
-; ---------------------------------------------------------------------------
-
-loc_77AE:				; DATA XREF: ROM:off_7776o
-		cmpi.w	#$340,($FFFFEE04).w
-		bcc.s	loc_77BC
-		subq.b	#2,($FFFFEEDF).w
-		rts
-; ---------------------------------------------------------------------------
-
-loc_77BC:				; CODE XREF: ROM:000077B4j
-		move.w	#0,($FFFFEECC).w
-		cmpi.w	#$E00,($FFFFEE00).w
-		bcc.s	locret_77F0
-		move.w	#$340,($FFFFEECC).w
-		move.w	#$340,($FFFFEEC6).w
-		cmpi.w	#$A90,($FFFFEE00).w
-		bcc.s	locret_77F0
-		move.w	#$500,($FFFFEEC6).w
-		cmpi.w	#$370,($FFFFEE04).w
-		bcs.s	locret_77F0
-		addq.b	#2,($FFFFEEDF).w
-
-locret_77F0:				; CODE XREF: ROM:000077C8j
-					; ROM:000077DCj ...
-		rts
-; ---------------------------------------------------------------------------
-
-loc_77F2:				; DATA XREF: ROM:off_7776o
-		cmpi.w	#$370,($FFFFEE04).w
-		bcc.s	loc_7800
-		subq.b	#2,($FFFFEEDF).w
-		rts
-; ---------------------------------------------------------------------------
-
-loc_7800:				; CODE XREF: ROM:000077F8j
-		cmpi.w	#$500,($FFFFEE04).w
-		bcs.s	locret_781A
-		cmpi.w	#$B80,($FFFFEE00).w
-		bcs.s	locret_781A
-		move.w	#$500,($FFFFEECC).w
-		addq.b	#2,($FFFFEEDF).w
-
-locret_781A:				; CODE XREF: ROM:00007806j
-					; ROM:0000780Ej
-		rts
-; ---------------------------------------------------------------------------
-
-loc_781C:				; DATA XREF: ROM:off_7776o
-		cmpi.w	#$B80,($FFFFEE00).w
-		bcc.s	loc_7832
-		cmpi.w	#$340,($FFFFEECC).w
-		beq.s	locret_786A
-		subq.w	#2,($FFFFEECC).w
-		rts
-; ---------------------------------------------------------------------------
-
-loc_7832:				; CODE XREF: ROM:00007822j
-		cmpi.w	#$500,($FFFFEECC).w
-		beq.s	loc_7848
-		cmpi.w	#$500,($FFFFEE04).w
-		bcs.s	locret_786A
-		move.w	#$500,($FFFFEECC).w
-
-loc_7848:				; CODE XREF: ROM:00007838j
-		cmpi.w	#$E70,($FFFFEE00).w
-		bcs.s	locret_786A
-		move.w	#0,($FFFFEECC).w
-		move.w	#$500,($FFFFEEC6).w
-		cmpi.w	#$1430,($FFFFEE00).w
-		bcs.s	locret_786A
-		move.w	#$210,($FFFFEEC6).w
-
-locret_786A:				; CODE XREF: ROM:0000782Aj
-					; ROM:00007840j ...
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_CPZ2:				; DATA XREF: ROM:DynResize_CPZ_Indexo
-		rts
-; ---------------------------------------------------------------------------
-
-S1DynResize_MZ2:			; leftover from	Sonic 1
-		move.w	#$520,($FFFFEEC6).w
-		cmpi.w	#$1700,($FFFFEE00).w
-		bcs.s	locret_7882
-		move.w	#$200,($FFFFEEC6).w
-
-locret_7882:				; CODE XREF: ROM:0000787Aj
-		rts
-; ===========================================================================
-
-DynResize_CPZ3:
-		moveq	#0,d0
-		move.b	($FFFFEEDF).w,d0
-		move.w	off_7892(pc,d0.w),d0
-		jmp	off_7892(pc,d0.w)
-; ===========================================================================
-off_7892:	dc.w DynResize_CPZ3_BossCheck-off_7892
-		dc.w DynResize_CPZ3_Null-off_7892
-; ===========================================================================
-
-DynResize_CPZ3_BossCheck:
-		cmpi.w	#$480,($FFFFEE00).w
-		blt.s	DynResize_CPZ3_Null
-		cmpi.w	#$740,($FFFFEE00).w
-		bgt.s	DynResize_CPZ3_Null
-		move.w	($FFFFEECE).w,d0
-		cmp.w	($FFFFEE04).w,d0
-		bne.s	DynResize_CPZ3_Null
-		move.w	#$740,($FFFFEECA).w
-		move.w	#$480,($FFFFEEC8).w
-		addq.b	#2,($FFFFEEDF).w
-		bsr.w	SingleObjLoad
-		bne.s	DynResize_CPZ3_Null
-		move.b	#$55,0(a1)	; load Obj55 (EHZ boss, likely CPZ boss at one point)
-		move.w	#$680,8(a1)
-		move.w	#$540,$C(a1)
-		moveq	#$11,d0
-		bra.w	LoadPLC
-; ===========================================================================
-
-DynResize_CPZ3_Null:
-		rts
-
-; ---------------------------------------------------------------------------
-
-DynResize_EHZ:				; DATA XREF: ROM:DynResize_Indexo
-		moveq	#0,d0
-		move.b	(Current_Act).w,d0
-		add.w	d0,d0
-		move.w	off_78F0(pc,d0.w),d0
-		jmp	off_78F0(pc,d0.w)
-; ---------------------------------------------------------------------------
-off_78F0:	dc.w DynResize_EHZ1-off_78F0 ; DATA XREF: ROM:off_78F0o
-					; ROM:000078F2o ...
-		dc.w DynResize_EHZ2-off_78F0
-		dc.w locret_7980-off_78F0
-; ---------------------------------------------------------------------------
-
-DynResize_EHZ1:				; DATA XREF: ROM:off_78F0o
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_EHZ2:				; DATA XREF: ROM:000078F2o
-		moveq	#0,d0
-		move.b	($FFFFEEDF).w,d0
-		move.w	DynResize_EHZ2_Index(pc,d0.w),d0
-		jmp	DynResize_EHZ2_Index(pc,d0.w)
-; ---------------------------------------------------------------------------
-DynResize_EHZ2_Index:dc.w DynResize_EHZ2_01-DynResize_EHZ2_Index
-					; DATA XREF: ROM:DynResize_EHZ2_Indexo
-					; ROM:00007908o ...
-		dc.w DynResize_EHZ2_02-DynResize_EHZ2_Index
-		dc.w DynResize_EHZ2_03-DynResize_EHZ2_Index
-; ---------------------------------------------------------------------------
-
-DynResize_EHZ2_01:			; DATA XREF: ROM:DynResize_EHZ2_Indexo
-		cmpi.w	#$26E0,($FFFFEE00).w
-		bcs.s	locret_795A
-		move.w	($FFFFEE00).w,($FFFFEEC8).w
-		move.w	#$390,($FFFFEEC6).w
-		move.w	#$390,($FFFFEECE).w
-		addq.b	#2,($FFFFEEDF).w
-		bsr.w	SingleObjLoad
-		bne.s	loc_7946
-		move.b	#$55,(a1) ; 'U'
-		move.b	#$81,$28(a1)
-		move.w	#$29D0,8(a1)
-		move.w	#$426,$C(a1)
-
-loc_7946:				; CODE XREF: ROM:0000792Ej
-		move.w	#bgm_Boss,d0
-		bsr.w	PlaySound
-		move.b	#1,($FFFFF7AA).w
-		moveq	#$11,d0
-		bra.w	LoadPLC
-; ---------------------------------------------------------------------------
-
-locret_795A:				; CODE XREF: ROM:00007912j
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_EHZ2_02:			; DATA XREF: ROM:00007908o
-		cmpi.w	#$2880,($FFFFEE00).w
-		bcs.s	locret_796E
-		move.w	#$2880,($FFFFEEC8).w
-		addq.b	#2,($FFFFEEDF).w
-
-locret_796E:				; CODE XREF: ROM:00007962j
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_EHZ2_03:			; DATA XREF: ROM:0000790Ao
-		tst.b	($FFFFF7A7).w
-		beq.s	DynResize_EHZ3
-		move.b	#GameModeID_SegaScreen,(Game_Mode).w
-
-DynResize_EHZ3:				; CODE XREF: ROM:00007974j
-		rts
-; ---------------------------------------------------------------------------
-		rts
-; ---------------------------------------------------------------------------
-
-locret_7980:				; DATA XREF: ROM:000078F4o
-		rts
-; ---------------------------------------------------------------------------
-
-S1DynResize_SLZ3:			; leftover from	Sonic 1
-		moveq	#0,d0
-		move.b	($FFFFEEDF).w,d0
-		move.w	off_7990(pc,d0.w),d0
-		jmp	off_7990(pc,d0.w)
-; ---------------------------------------------------------------------------
-off_7990:	dc.w loc_7996-off_7990	; DATA XREF: ROM:off_7990o
-					; ROM:00007992o ...
-		dc.w loc_79AA-off_7990
-		dc.w loc_79D6-off_7990
-; ---------------------------------------------------------------------------
-
-loc_7996:				; DATA XREF: ROM:off_7990o
-		cmpi.w	#$1E70,($FFFFEE00).w
-		bcs.s	locret_79A8
-		move.w	#$210,($FFFFEEC6).w
-		addq.b	#2,($FFFFEEDF).w
-
-locret_79A8:				; CODE XREF: ROM:0000799Cj
-		rts
-; ---------------------------------------------------------------------------
-
-loc_79AA:				; DATA XREF: ROM:00007992o
-		cmpi.w	#$2000,($FFFFEE00).w
-		bcs.s	locret_79D4
-		bsr.w	SingleObjLoad
-		bne.s	loc_79BC
-		move.b	#$7A,(a1) ; 'z'
-
-loc_79BC:				; CODE XREF: ROM:000079B6j
-		move.w	#bgm_Boss,d0
-		bsr.w	PlaySound
-		move.b	#1,($FFFFF7AA).w
-		addq.b	#2,($FFFFEEDF).w
-		moveq	#$11,d0
-		bra.w	LoadPLC
-; ---------------------------------------------------------------------------
-
-locret_79D4:				; CODE XREF: ROM:000079B0j
-		rts
-; ---------------------------------------------------------------------------
-
-loc_79D6:				; DATA XREF: ROM:00007994o
-		move.w	($FFFFEE00).w,($FFFFEEC8).w
-		rts
-; ---------------------------------------------------------------------------
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_HPZ:				; DATA XREF: ROM:DynResize_Indexo
-		moveq	#0,d0
-		move.b	(Current_Act).w,d0
-		add.w	d0,d0
-		move.w	DynResize_HPZ_Index(pc,d0.w),d0
-		jmp	DynResize_HPZ_Index(pc,d0.w)
-; ---------------------------------------------------------------------------
-DynResize_HPZ_Index:dc.w DynResize_HPZ1-DynResize_HPZ_Index
-					; DATA XREF: ROM:DynResize_HPZ_Indexo
-					; ROM:000079F2o ...
-		dc.w DynResize_HPZ2-DynResize_HPZ_Index
-		dc.w DynResize_HPZ3-DynResize_HPZ_Index
-; ---------------------------------------------------------------------------
-
-DynResize_HPZ1:				; DATA XREF: ROM:DynResize_HPZ_Indexo
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_HPZ2:				; DATA XREF: ROM:000079F2o
-		move.w	#$520,($FFFFEEC6).w
-		cmpi.w	#$25A0,($FFFFEE00).w
-		bcs.s	locret_7A1A
-		move.w	#$420,($FFFFEEC6).w
-		cmpi.w	#$4D0,($FFFFB00C).w
-		bcs.s	locret_7A1A
-		move.w	#$520,($FFFFEEC6).w
-
-locret_7A1A:				; CODE XREF: ROM:00007A04j
-					; ROM:00007A12j
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_HPZ3:				; DATA XREF: ROM:000079F4o
-		moveq	#0,d0
-		move.b	($FFFFEEDF).w,d0
-		move.w	DynResize_HPZ3_Index(pc,d0.w),d0
-		jmp	DynResize_HPZ3_Index(pc,d0.w)
-; ---------------------------------------------------------------------------
-DynResize_HPZ3_Index:dc.w loc_7A30-DynResize_HPZ3_Index
-					; DATA XREF: ROM:DynResize_HPZ3_Indexo
-					; ROM:00007A2Co ...
-		dc.w loc_7A48-DynResize_HPZ3_Index
-		dc.w loc_7A7A-DynResize_HPZ3_Index
-; ---------------------------------------------------------------------------
-
-loc_7A30:				; DATA XREF: ROM:DynResize_HPZ3_Indexo
-		cmpi.w	#$2AC0,($FFFFEE00).w
-		bcs.s	locret_7A46
-		bsr.w	SingleObjLoad
-		bne.s	locret_7A46
-		move.b	#$76,(a1) ; 'v'
-		addq.b	#2,($FFFFEEDF).w
-
-locret_7A46:				; CODE XREF: ROM:00007A36j
-					; ROM:00007A3Cj
-		rts
-; ---------------------------------------------------------------------------
-
-loc_7A48:				; DATA XREF: ROM:00007A2Co
-		cmpi.w	#$2C00,($FFFFEE00).w
-		bcs.s	locret_7A78
-		move.w	#$4CC,($FFFFEEC6).w
-		bsr.w	SingleObjLoad
-		bne.s	loc_7A64
-		move.b	#$75,(a1) ; 'u'
-		addq.b	#2,($FFFFEEDF).w
-
-loc_7A64:				; CODE XREF: ROM:00007A5Aj
-		move.w	#bgm_Boss,d0
-		bsr.w	PlaySound
-		move.b	#1,($FFFFF7AA).w
-		moveq	#$11,d0
-		bra.w	LoadPLC
-; ---------------------------------------------------------------------------
-
-locret_7A78:				; CODE XREF: ROM:00007A4Ej
-		rts
-; ---------------------------------------------------------------------------
-
-loc_7A7A:				; DATA XREF: ROM:00007A2Eo
-		move.w	($FFFFEE00).w,($FFFFEEC8).w
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_HTZ:				; DATA XREF: ROM:DynResize_Indexo
-		moveq	#0,d0
-		move.b	(Current_Act).w,d0
-		add.w	d0,d0
-		move.w	DynResize_HTZ_Index(pc,d0.w),d0
-		jmp	DynResize_HTZ_Index(pc,d0.w)
-; ---------------------------------------------------------------------------
-DynResize_HTZ_Index:dc.w DynResize_HTZ1-DynResize_HTZ_Index
-					; DATA XREF: ROM:DynResize_HTZ_Indexo
-					; ROM:00007A94o ...
-		dc.w DynResize_HTZ2-DynResize_HTZ_Index
-		dc.w DynResize_HTZ3-DynResize_HTZ_Index
-; ---------------------------------------------------------------------------
-
-DynResize_HTZ1:				; DATA XREF: ROM:DynResize_HTZ_Indexo
-		move.w	#$720,($FFFFEEC6).w
-		cmpi.w	#$1880,($FFFFEE00).w
-		bcs.s	locret_7ABA
-		move.w	#$620,($FFFFEEC6).w
-		cmpi.w	#$2000,($FFFFEE00).w
-		bcs.s	locret_7ABA
-		move.w	#$2A0,($FFFFEEC6).w
-
-locret_7ABA:				; CODE XREF: ROM:00007AA4j
-					; ROM:00007AB2j
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_HTZ2:				; DATA XREF: ROM:00007A94o
-		moveq	#0,d0
-		move.b	($FFFFEEDF).w,d0
-		move.w	DynResize_HTZ2_Index(pc,d0.w),d0
-		jmp	DynResize_HTZ2_Index(pc,d0.w)
-; ---------------------------------------------------------------------------
-DynResize_HTZ2_Index:dc.w loc_7AD2-DynResize_HTZ2_Index
-					; DATA XREF: ROM:DynResize_HTZ2_Indexo
-					; ROM:00007ACCo ...
-		dc.w loc_7AF4-DynResize_HTZ2_Index
-		dc.w loc_7B12-DynResize_HTZ2_Index
-		dc.w loc_7B30-DynResize_HTZ2_Index
-; ---------------------------------------------------------------------------
-
-loc_7AD2:				; DATA XREF: ROM:DynResize_HTZ2_Indexo
-		move.w	#$800,($FFFFEEC6).w
-		cmpi.w	#$1800,($FFFFEE00).w
-		bcs.s	locret_7AF2
-		move.w	#$510,($FFFFEEC6).w
-		cmpi.w	#$1E00,($FFFFEE00).w
-		bcs.s	locret_7AF2
-		addq.b	#2,($FFFFEEDF).w
-
-locret_7AF2:				; CODE XREF: ROM:00007ADEj
-					; ROM:00007AECj
-		rts
-; ---------------------------------------------------------------------------
-
-loc_7AF4:				; DATA XREF: ROM:00007ACCo
-		cmpi.w	#$1EB0,($FFFFEE00).w
-		bcs.s	locret_7B10
-		bsr.w	SingleObjLoad
-		bne.s	locret_7B10
-		move.b	#$83,(a1)
-		addq.b	#2,($FFFFEEDF).w
-		moveq	#$1E,d0
-		bra.w	LoadPLC
-; ---------------------------------------------------------------------------
-
-locret_7B10:				; CODE XREF: ROM:00007AFAj
-					; ROM:00007B00j
-		rts
-; ---------------------------------------------------------------------------
-
-loc_7B12:				; DATA XREF: ROM:00007ACEo
-		cmpi.w	#$1F60,($FFFFEE00).w
-		bcs.s	loc_7B2E
-		bsr.w	SingleObjLoad
-		bne.s	loc_7B28
-		move.b	#$82,(a1)
-		addq.b	#2,($FFFFEEDF).w
-
-loc_7B28:				; CODE XREF: ROM:00007B1Ej
-		move.b	#1,($FFFFF7AA).w
-
-loc_7B2E:				; CODE XREF: ROM:00007B18j
-		bra.s	loc_7B3A
-; ---------------------------------------------------------------------------
-
-loc_7B30:				; DATA XREF: ROM:00007AD0o
-		cmpi.w	#$2050,($FFFFEE00).w
-		bcs.s	loc_7B3A
-		rts
-; ---------------------------------------------------------------------------
-
-loc_7B3A:				; CODE XREF: ROM:loc_7B2Ej
-					; ROM:00007B36j ...
-		move.w	($FFFFEE00).w,($FFFFEEC8).w
-		rts
-; ---------------------------------------------------------------------------
-
-DynResize_HTZ3:				; DATA XREF: ROM:00007A96o
-		moveq	#0,d0
-		move.b	($FFFFEEDF).w,d0
-		move.w	DynResize_HTZ3_Index(pc,d0.w),d0
-		jmp	DynResize_HTZ3_Index(pc,d0.w)
-; ---------------------------------------------------------------------------
-DynResize_HTZ3_Index:dc.w loc_7B5A-DynResize_HTZ3_Index
-					; DATA XREF: ROM:DynResize_HTZ3_Indexo
-					; ROM:00007B52o ...
-		dc.w loc_7B6E-DynResize_HTZ3_Index
-		dc.w loc_7B8C-DynResize_HTZ3_Index
-		dc.w locret_7B9A-DynResize_HTZ3_Index
-		dc.w loc_7B9C-DynResize_HTZ3_Index
-; ---------------------------------------------------------------------------
-
-loc_7B5A:				; DATA XREF: ROM:DynResize_HTZ3_Indexo
-		cmpi.w	#$2148,($FFFFEE00).w
-		bcs.s	loc_7B6C
-		addq.b	#2,($FFFFEEDF).w
-		moveq	#$1F,d0
-		bsr.w	LoadPLC
-
-loc_7B6C:				; CODE XREF: ROM:00007B60j
-		bra.s	loc_7B3A
-; ---------------------------------------------------------------------------
-
-loc_7B6E:				; DATA XREF: ROM:00007B52o
-		cmpi.w	#$2300,($FFFFEE00).w
-		bcs.s	loc_7B8A
-		bsr.w	SingleObjLoad
-		bne.s	loc_7B8A
-		move.b	#$85,(a1)
-		addq.b	#2,($FFFFEEDF).w
-		move.b	#1,($FFFFF7AA).w
-
-loc_7B8A:				; CODE XREF: ROM:00007B74j
-					; ROM:00007B7Aj
-		bra.s	loc_7B3A
-; ---------------------------------------------------------------------------
-
-loc_7B8C:				; DATA XREF: ROM:00007B54o
-		cmpi.w	#$2450,($FFFFEE00).w
-		bcs.s	loc_7B98
-		addq.b	#2,($FFFFEEDF).w
-
-loc_7B98:				; CODE XREF: ROM:00007B92j
-		bra.s	loc_7B3A
-; ---------------------------------------------------------------------------
-
-locret_7B9A:				; DATA XREF: ROM:00007B56o
-		rts
-; ---------------------------------------------------------------------------
-
-loc_7B9C:				; DATA XREF: ROM:00007B58o
-		bra.s	loc_7B3A
-; ---------------------------------------------------------------------------
-
-;DynResize_S1Ending:			; DATA XREF: ROM:DynResize_Indexo
-;		rts
-; ---------------------------------------------------------------------------
-DynResize_S1Ending:			; DATA XREF: ROM:DynResize_Indexo
-		rts
-loc_7FC8:
-; ---------------------------------------------------------------------------
-; Alpha Beta Zone sequence dynamic screen resizing (empty)
-; ---------------------------------------------------------------------------
-
-Resize_ABZ:				; XREF: Resize_Index
-		moveq	#0,d0
-		move.b	($FFFFFE11).w,d0
-		add.w	d0,d0
-		move.w	Resize_ABZx(pc,d0.w),d0
-		jmp	Resize_ABZx(pc,d0.w)
-; ===========================================================================
-Resize_ABZx:	dc.w Resize_ABZ1-Resize_ABZx
-		dc.w Resize_ABZ2-Resize_ABZx
-		dc.w Resize_ABZ3-Resize_ABZx
-; ===========================================================================
-Resize_ABZ1:
-		rts
-; ===========================================================================
-Resize_ABZ2:
-		rts
-; ===========================================================================
-Resize_ABZ3:
-		rts
-; ===========================================================================
-loc_7FCA:
-		rts
-loc_7FCC:
-		rts
-loc_7FCE:
-		rts
-DynResize_CNz: ; loc_7FD0:
-		rts
-DynResize_CPz: ;loc_7FD2:
-		rts
-DynResize_GCz: ;loc_7FD4:
-		rts
-DynResize_NGHz: ;loc_7FD6:
-		rts
-DynResize_DEz: ;loc_7FD8:
-		rts   
+; DynScreenResizeLoad:
+ include "_inc/DynResizeLoad.asm"
 ;----------------------------------------------------
 ; Object 11 - Bridge
 ;----------------------------------------------------
@@ -15789,12 +14997,19 @@ locret_BCC2:
 ; ---------------------------------------------------------------------------
 		bra.w	DisplaySprite
 ; ===========================================================================
-LevelOrder:	dc.w	 1,    2, $200,	   0; 0
-		dc.w  $101, $102, $300,	$502; 4
-		dc.w  $201, $202, $400,	   0; 8
-		dc.w  $301, $302, $500,	   0; 12
-		dc.w  $401, $402, $100,	   0; 16
-		dc.w  $501, $103,    0,	   0; 20
+LevelOrder:
+        dc.w	 1,    2, $200,	   0; 0; ghz, unused
+		dc.w  $101, $102, $300,	$502; 4;lz, mostly unused bc mtz doesnt have signposts in sw
+		dc.w  $201, $202, $400,	   0; 8;mz, should be used
+		dc.w  $301, $600, $500,	   0; 12;ehz, first one used
+		dc.w  $401, $402, $100,	   0; 16;hpz, first used maybe
+		dc.w  $501, $103,    0,	   0; 20;htz, fist used
+		dc.w  $601,$B00,0,0;wz, first two used
+		dc.w  $701,$C00,0,0;dhz,first two used
+		dc.w  $801,0,0,0;cnz,idk
+		dc.w  $901,0,0,0;ooz,idk
+		dc.w  $A01,0,0,0;nghz,idk
+		dc.w  $B01,$100,0,0;ssz, first 2 used
 ; ---------------------------------------------------------------------------
 
 loc_BCF8:				; CODE XREF: ROM:0000BBE6j
@@ -16881,7 +16096,7 @@ Obj_Index:
 		dc.l Obj_0x1D_Worms;ObjNull
 		dc.l Obj_0x1E_Tube_Attributes;ObjNull
 		dc.l Obj1F		; (S1) Crabmeat from GHZ
-		dc.l Obj_0x20_HPZ_Platform;ObjNull
+		dc.l Obj_0x20_HPZ_Platform;ObjNull; taken from s2 secret zones all credits to them
 		dc.l Obj21		; Score/Rings/Time display (HUD)
 		dc.l Obj22		; (S1) Buzz Bomber from GHZ
 		dc.l Obj23		; (S1) Buzz Bomber/Newtron missile
@@ -16994,7 +16209,7 @@ Obj_Index:
 ; blank object, allocates its array
 ; jmp_DeleteObject:
 ObjNull:
-		bra.w	DeleteObject
+		bra.w	DeleteObject;thank GOD na thought of this, in s1 every blank object went staight to speedtopos
 
 ; ---------------------------------------------------------------------------
 ; Subroutine to make an object move and fall downward increasingly fast
@@ -20730,6 +19945,7 @@ loc_F0F6:
 ; ||||||||||||||| S U B R O U T I N E |||||||||||||||||||||||||||||||||||||||
 
 ; GotThroughAct:
+LoadLevelResults:
 Load_EndOfAct:
 		tst.b	($FFFFB5C0).w
 		bne.s	locret_F15E
@@ -35085,510 +34301,9 @@ j_Adjust2PArtPointer_7:		; JmpTo
 		align 4
 
 ; ===========================================================================
-; ---------------------------------------------------------------------------
-; Subroutine to animate stage art
-; ---------------------------------------------------------------------------
-
-; ||||||||||||||| S U B R O U T I N E |||||||||||||||||||||||||||||||||||||||
-
 ; DynamicArtCues:
-AniArt_Load:
-		moveq	#0,d0
-		move.b	(Current_Zone).w,d0
-		add.w	d0,d0
-		add.w	d0,d0
-		move.w	DynArtCue_Index+2(pc,d0.w),d1
-		lea	DynArtCue_Index(pc,d1.w),a2
-		move.w	DynArtCue_Index(pc,d0.w),d0
-		jmp	DynArtCue_Index(pc,d0.w)
-; ---------------------------------------------------------------------------
-		rts
-; End of function AniArt_Load
-
-; ---------------------------------------------------------------------------
-; ZONE ANIMATION PROCEDURES AND SCRIPTS
-;
-; Each zone gets two entries in this jump table. The first entry points to the
-; zone's animation procedure (usually Dynamic_Null, AKA none). The second points
-; to the zone's animation script.
-;
-; Seems like stage IDs were already being shifted, since listings for $07-$0F
-; can be found, alongside HPZ's art listed from $08 (its ID in the final).
-; ---------------------------------------------------------------------------
-DynArtCue_Index:
-		dc.w Dynamic_NullGHZ-DynArtCue_Index,AnimCue_EHZ-DynArtCue_Index
-		dc.w Dynamic_Null-DynArtCue_Index,AnimCue_MTZ-DynArtCue_Index
-		dc.w Dynamic_Null-DynArtCue_Index,AnimCue_CPZ-DynArtCue_Index
-		dc.w Dynamic_Normal-DynArtCue_Index,AnimCue_EHZ-DynArtCue_Index
-		dc.w Dynamic_Normal-DynArtCue_Index,AnimCue_HPZ-DynArtCue_Index
-		dc.w Dynamic_Normal-DynArtCue_Index,AnimCue_EHZ-DynArtCue_Index
-		dc.w Dynamic_Null-DynArtCue_Index,AnimCue_CPZ-DynArtCue_Index
-		dc.w Dynamic_Null-DynArtCue_Index,AnimCue_CPZ-DynArtCue_Index
-		dc.w Dynamic_Normal-DynArtCue_Index,AnimCue_HPZ-DynArtCue_Index
-		dc.w Dynamic_Null-DynArtCue_Index,AnimCue_CPZ-DynArtCue_Index
-		dc.w Dynamic_Null-DynArtCue_Index,AnimCue_CPZ-DynArtCue_Index
-		dc.w Dynamic_Null-DynArtCue_Index,AnimCue_CPZ-DynArtCue_Index
-		dc.w Dynamic_Null-DynArtCue_Index,AnimCue_CPZ-DynArtCue_Index
-		dc.w Dynamic_Null-DynArtCue_Index,AnimCue_CPZ-DynArtCue_Index
-		dc.w Dynamic_Null-DynArtCue_Index,AnimCue_CPZ-DynArtCue_Index
-		dc.w Dynamic_Null-DynArtCue_Index,AnimCue_CPZ-DynArtCue_Index
-; ===========================================================================
-
-Dynamic_Null:
-		rts
-; ===========================================================================
-
-Dynamic_NullGHZ:
-		rts
-; ===========================================================================
-
-Dynamic_Normal:
-		lea	(Anim_Counters).w,a3
-		move.w	(a2)+,d6	; Get number of scripts in list
-
-loc_1AACA:
-		subq.b	#1,(a3)		; Tick down frame duration
-		bpl.s	loc_1AB10	; If frame isn't over, move on to next script
-
-		moveq	#0,d0
-		move.b	1(a3),d0	; Get current frame
-		cmp.b	6(a2),d0	; Have we processed the last frame in the script?
-		bcs.s	loc_1AAE0
-		moveq	#0,d0		; If so, reset to first frame
-		move.b	d0,1(a3)
-
-loc_1AAE0:
-		addq.b	#1,1(a3)	; Consider this frame processed; set counter to next frame
-		move.b	(a2),(a3)	; Set frame duration to global duration value
-		bpl.s	loc_1AAEE
-		; If script uses per-frame durations, use those instead
-		add.w	d0,d0
-		move.b	9(a2,d0.w),(a3)	; Set frame duration to current frame's duration value
-
-loc_1AAEE:
-		; Prepare for DMA transfer
-		; Get relative address of frame's art
-		move.b	8(a2,d0.w),d0	; Get tile ID
-		lsl.w	#5,d0		; Turn it into an offset
-		; Get VRAM destination address
-		move.w	4(a2),d2
-		; Get ROM source address
-		move.l	(a2),d1		; Get start address of animated tile art
-		andi.l	#$FFFFFF,d1
-		add.l	d0,d1		; Offset into art, to get the address of new frame
-		; Get size of art to be transferred
-		moveq	#0,d3
-		move.b	7(a2),d3
-		lsl.w	#4,d3		; Turn it into actual size (in words)
-		; Use d1, d2 and d3 to queue art for transfer
-		jsr	(QueueDMATransfer).l
-
-loc_1AB10:
-		move.b	6(a2),d0	; Get total size of frame data
-		tst.b	(a2)		; Is per-frame duration data present?
-		bpl.s	loc_1AB1A	; If not, keep the current size; it's correct
-		add.b	d0,d0		; Double size to account for the additional frame duration data
-
-loc_1AB1A:
-		addq.b	#1,d0
-		andi.w	#$FE,d0		; Round to next even address, if it isn't already
-		lea	8(a2,d0.w),a2	; Advance to next script in list
-		addq.w	#2,a3		; Advance to next script's slot in a3 (usually Anim_Counters)
-		dbf	d6,loc_1AACA
-		rts
-; ===========================================================================
-AnimCue_EHZ:	dc.w 4
-		dc.l Art_EHZFlower1+$FF000000
-		dc.w $7280
-		dc.b 6
-		dc.b 2
-		dc.b   0,$7F		; 0
-		dc.b   2,$13		; 2
-		dc.b   0,  7		; 4
-		dc.b   2,  7		; 6
-		dc.b   0,  7		; 8
-		dc.b   2,  7		; 10
-		dc.l Art_EHZFlower2+$FF000000
-		dc.w $72C0
-		dc.b 8
-		dc.b 2
-		dc.b   2,$7F		; 0
-		dc.b   0, $B		; 2
-		dc.b   2, $B		; 4
-		dc.b   0, $B		; 6
-		dc.b   2,  5		; 8
-		dc.b   0,  5		; 10
-		dc.b   2,  5		; 12
-		dc.b   0,  5		; 14
-		dc.l Art_EHZFlower3+$7000000
-		dc.w $7300
-		dc.b 2
-		dc.b 2
-		dc.b   0,  2		; 0
-		dc.l Art_EHZFlower4+$FF000000
-		dc.w $7340
-		dc.b 8
-		dc.b 2
-		dc.b   0,$7F		; 0
-		dc.b   2,  7		; 2
-		dc.b   0,  7		; 4
-		dc.b   2,  7		; 6
-		dc.b   0,  7		; 8
-		dc.b   2, $B		; 10
-		dc.b   0, $B		; 12
-		dc.b   2, $B		; 14
-		dc.l Art_EHZFlower5+$1000000
-		dc.w $7380
-		dc.b 6
-		dc.b 2
-		dc.b   0,  2		; 0
-		dc.b   4,  6		; 2
-		dc.b   4,  2		; 4
-
-AnimCue_HPZ:	dc.w 2
-		dc.l Art_HPZGlowingBall+$8000000
-		dc.w $5D00
-		dc.b 6	;06
-		dc.b 8	;08 in acelasi nr. in sw.
-		dc.b   0,  0		; 0;00 cu 00
-		dc.b   8,$10		; 2;08 cu 10
-		dc.b $10,  8		; 4;10 cu 8
-		dc.l Art_HPZGlowingBall+$8000000;ok cre ca am inteles cum vine treaba
-		dc.w $5E00
-		dc.b 6
-		dc.b 8
-		dc.b   8,$10		; 0
-		dc.b $10,  8		; 2
-		dc.b   0,  0		; 4
-		dc.l Art_HPZGlowingBall+$8000000
-		dc.w $5F00
-		dc.b 6
-		dc.b 8
-		dc.b $10,  8		; 0
-		dc.b   0,  0		; 2
-		dc.b   8,$10		; 4
-
-; According to leftover resizing code, this was meant for the
-; Chemical Plant Zone boss, which symbol tables refer to as "vaccume".
-AnimCue_MTZ:
-		dc.w    5		   ; Total of Animations
-		dc.l    ArtUnc_MTZCylinder;+$8000000     ; loc_2902A  
-		dc.w    $6980		   ; VRam
-		dc.b	8;08
-		dc.b	$10;10 = $0810
-		dc.b	0,	$10;0010
-		dc.b	$20,	$30
-		dc.b	$40,	$50
-		dc.b	$60,	$70
-;		dc.w    $0810		   ; Frames/Tiles
-;		dc.w    $0010, $2030, $4050, $6070 ; Frame Load/Frame Time
-		dc.l    ($0D<<$18)|ArtUnc_Lava      ; loc_2A02A:
-		dc.w    $6800		   ; VRam
-		dc.b	6
-		dc.b	$C
-		dc.b	0,	$C
-		dc.b	$18,	$24
-		dc.b	$18,	$C
-;		dc.w    $060C		   ; Frames/Tiles
-;		dc.w    $000C, $1824, $180C     ; Frame Load/Frame Time
-		dc.l    ($FF<<$18)|ArtUnc_MTZAnimBack   ; loc_2A06A:
-		dc.w    $6B80		   ; VRam
-		dc.w    $0406		   ; Frames/Tiles
-		dc.w    $0013, $0607, $0C13, $0607 ; Frame Load/Frame Time
-		dc.l    ($FF<<$18)|ArtUnc_MTZAnimBack   ; loc_2A06A:
-		dc.w    $6C40		   ; VRam
-		dc.w    $0406		   ; Frames/Tiles
-		dc.w    $0C13, $0607, $0013, $0607 ; Frame Load/Frame Time
-		dc.l    ($05<<$18)|ArtUnc_Drills    ; loc_2A86A:
-		dc.w    $6D00		   ; VRam
-		dc.w    $0408		   ; Frames/Tiles
-		dc.w    $0008, $1018            ; Frame Load/Frame Time
-		dc.l    ($05<<$18)|ArtUnc_Drills    ; loc_2A86A:
-		dc.w    $6E00		   ; VRam
-		dc.w    $0408		   ; Frames/Tiles
-		dc.w    $0008, $1018            ; Frame Load/Frame Time
-;	dc.w	5
-;		dc.w    $6980;$0005		   ; Total of Animations
-;		dc.l    ArtUnc_MTZCylinder+$8000000     ; loc_2902A  
-;;		dc.w    $6980		   ; VRam
-;		dc.b    6;$0810		   ; Frames/Tiles
-;		dc.b    8;$0010, $2030, $4050, $6070 ; Frame Load/Frame Time
-;		dc.b   0,  4		; 0
-;		dc.l    ($0D<<$18)|ArtUnc_Lava      ; loc_2A02A:
-;		dc.w    $6800		   ; VRam
-;		dc.w    $060C		   ; Frames/Tiles
-;		dc.w    $000C, $1824, $180C     ; Frame Load/Frame Time
-;		dc.l    ($FF<<$18)|ArtUnc_MTZAnimBack+$8000000   ; loc_2A06A:
-;		dc.w    $6B80		   ; VRam
-;		dc.w    $0406		   ; Frames/Tiles
-;		dc.w    $0013, $0607, $0C13, $0607 ; Frame Load/Frame Time
-;		dc.l    ($FF<<$18)|ArtUnc_MTZAnimBack   ; loc_2A06A:
-;		dc.w    $6C40		   ; VRam
-;		dc.w    $0406		   ; Frames/Tiles
-;		dc.w    $0C13, $0607, $0013, $0607 ; Frame Load/Frame Time
-;		dc.l    ($05<<$18)|ArtUnc_Drills    ; loc_2A86A:
-;		dc.w    $6D00		   ; VRam
-;		dc.w    $0408		   ; Frames/Tiles
-;		dc.w    $0008, $1018            ; Frame Load/Frame Time
-;		dc.l    ($05<<$18)|ArtUnc_Drills    ; loc_2A86A:
-;		dc.w    $6E00		   ; VRam
-;		dc.w    $0408		   ; Frames/Tiles
-;		dc.w    $0008, $1018            ; Frame Load/Frame Time
-AnimCue_CPZ:	dc.w 7
-		dc.l Art_UnkZone_1+$7000000
-		dc.w $9000
-		dc.b 2
-		dc.b 4
-		dc.b   0,  4		; 0
-		dc.l Art_UnkZone_2+$7000000
-		dc.w $9080
-		dc.b 3
-		dc.b 8
-		dc.b   0,  8		; 0
-		dc.b $10,  0		; 2
-		dc.l Art_UnkZone_3+$7000000
-		dc.w $9180
-		dc.b 4
-		dc.b 2
-		dc.b   0,  2		; 0
-		dc.b   0,  4		; 2
-		dc.l Art_UnkZone_4+$B000000
-		dc.w $91C0
-		dc.b 4
-		dc.b 2
-		dc.b   0,  2		; 0
-		dc.b   4,  2		; 2
-		dc.l Art_UnkZone_5+$F000000
-		dc.w $9200
-		dc.b $A
-		dc.b 1
-		dc.b   0		; 0
-		dc.b   0		; 1
-		dc.b   1		; 2
-		dc.b   2		; 3
-		dc.b   3		; 4
-		dc.b   4		; 5
-		dc.b   5		; 6
-		dc.b   4		; 7
-		dc.b   5		; 8
-		dc.b   4		; 9
-		dc.l Art_UnkZone_6+$3000000
-		dc.w $9220
-		dc.b 4
-		dc.b 4
-		dc.b   0,  4		; 0
-		dc.b   8,  4		; 2
-		dc.l Art_UnkZone_7+$7000000
-		dc.w $92A0
-		dc.b 6
-		dc.b 3
-		dc.b   0,  3		; 0
-		dc.b   6,  9		; 2
-		dc.b  $C, $F		; 4
-		dc.l Art_UnkZone_8+$7000000
-		dc.w $9300
-		dc.b 4
-		dc.b 1
-		dc.b   0		; 0
-		dc.b   1		; 1
-		dc.b   2		; 2
-		dc.b   3		; 3
-
-; ===========================================================================
-; ---------------------------------------------------------------------------
-; This seems to be a subroutine that would've shifted the background blocks
-; of Chemical Plant Zone once the player reached a certain X position,
-; lasting exactly two screens. This can also be found in the final at
-; $40200 in the ROM, with the only difference being its level ID, which
-; was updated to match Chemical Plant's final ID ($0D instead of 02)
-;
-; To see the effect for yourself, add a branch to it at the
-; start of LoadTilesAsYouMove and change $FFFF7500/$FFFF7D00 to
-; $FFFF0000/$FFFF0800 (to make it more visible)
-; ---------------------------------------------------------------------------
-
-; ||||||||||||||| S U B R O U T I N E |||||||||||||||||||||||||||||||||||||||
-
-
-; sub_1AC1E: ShiftCPZBackground:
-		cmpi.b	#2,(Current_Zone).w	; is this Chemical Plant Zone?
-		beq.s	loc_1AC28		; if yes, branch
-
-locret_1AC26:
-		rts
-; ===========================================================================
-; this shifts all blocks of the chunks $EA-$ED and $FA-$FD one block to the
-; left and the last block in each row (chunk $ED/$FD) to the beginning
-; i.e. rotates the blocks to the left by one
-
-loc_1AC28:
-		move.w	($FFFFEE00).w,d0
-		cmpi.w	#$1940,d0
-		bcs.s	locret_1AC26
-		cmpi.w	#$1F80,d0
-		bcc.s	locret_1AC26
-		subq.b	#1,($FFFFF721).w
-		bpl.s	locret_1AC26
-		move.b	#7,($FFFFF721).w
-		move.b	#1,($FFFFF720).w
-		lea	($FFFF7500).l,a1
-		bsr.s	sub_1AC58
-		lea	($FFFF7D00).l,a1
-
-sub_1AC58:
-		move.w	#7,d1
-
-loc_1AC5C:
-		move.w	(a1),d0
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	$72(a1),(a1)+
-		adda.w	#$70,a1
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	$72(a1),(a1)+
-		adda.w	#$70,a1
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	$72(a1),(a1)+
-		adda.w	#$70,a1
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	2(a1),(a1)+
-		move.w	d0,(a1)+
-		suba.w	#$180,a1
-		dbf	d1,loc_1AC5C
-		rts
-; End of function ShiftCPZBackground
-
-; ===========================================================================
-; ---------------------------------------------------------------------------
-; Subroutine to load animated blocks
-; ---------------------------------------------------------------------------
-
-; ||||||||||||||| S U B R O U T I N E |||||||||||||||||||||||||||||||||||||||
-
-; LoadMap16Delta:
-LoadAnimatedBlocks:
-		moveq	#0,d0
-		move.b	(Current_Zone).w,d0
-		add.w	d0,d0
-		move.w	AnimPatMaps(pc,d0.w),d0
-		lea	AnimPatMaps(pc,d0.w),a0
-		tst.w	(a0)
-		beq.s	locret_1AD1A
-		lea	($FFFF9000).w,a1
-		adda.w	(a0)+,a1
-		move.w	(a0)+,d1
-		tst.w	(Two_player_mode).w
-		bne.s	LoadLevelBlocks_2P
-; loc_1AD14:
-LoadLevelBlocks:
-		move.w	(a0)+,(a1)+
-		dbf	d1,LoadLevelBlocks
-
-locret_1AD1A:
-		rts
-; ---------------------------------------------------------------------------
-; loc_1AD1C:
-LoadLevelBlocks_2P:
-		move.w	(a0)+,d0
-		move.w	d0,d1
-		andi.w	#$F800,d0
-		andi.w	#$7FF,d1
-		lsr.w	#1,d1
-		or.w	d1,d0
-		move.w	d0,(a1)+
-		dbf	d1,LoadLevelBlocks_2P
-		rts
-; End of function LoadAnimatedBlocks
-
-; ===========================================================================
-; like with the animated stage art, this already lists stages up to $0F and
-; includes an entry for the final HPZ level slot, and this time even lists
-; CPZ's final level slot
-; Map16Delta_Index:
-AnimPatMaps:
-		dc.w APM_GHZ-AnimPatMaps
-		dc.w APM_LZ-AnimPatMaps
-		dc.w APM_CPZ-AnimPatMaps
-		dc.w APM_GHZ-AnimPatMaps
-		dc.w APM_HPZ-AnimPatMaps
-		dc.w APM_GHZ-AnimPatMaps
-		dc.w APM_LZ-AnimPatMaps
-		dc.w APM_LZ-AnimPatMaps
-		dc.w APM_HPZ-AnimPatMaps
-		dc.w APM_LZ-AnimPatMaps
-		dc.w APM_LZ-AnimPatMaps
-		dc.w APM_LZ-AnimPatMaps
-		dc.w APM_LZ-AnimPatMaps
-		dc.w APM_CPZ-AnimPatMaps
-		dc.w APM_LZ-AnimPatMaps
-		dc.w APM_LZ-AnimPatMaps
-
-APM_GHZ:	dc.w $1788,  $3B,$4502,$4504,$4503,$4505,$4506,$4508,$4507,$4509,$450A,$450C,$450B,$450D,$450E,$4510
-		dc.w $450F,$4511,$4512,$4514,$4513,$4515,$4516,$4518,$4517,$4519,$651A,$651C,$651B,$651D,$651E,$6520
-		dc.w $651F,$6521,$439C,$4B9C,$439D,$4B9D,$4158,$439C,$4159,$439D,$4B9C,$4958,$4B9D,$4959,$6394,$6B94
-		dc.w $6395,$6B95,$E396,$EB96,$E397,$EB97,$6398,$6B98,$6399,$6B99,$E39A,$EB9A,$E39B,$EB9B
-
-APM_LZ:
-Map16Delta_Mz: ; loc_22A40: ; Metropolis 16x16 mappings used by dynamic reload sprites...  
-		dc.w    $1730 ; Ram Address to start loading ($1730+$FFFF9000)      -> adda.w  (A0)+, A1
-		dc.w    $0067 ; Number of words to load in Ram Array ($0000..$0067) -> move.w  (A0)+, D1
-		dc.w    $235C, $2B5C, $235D, $2B5D, $235E, $2B5E, $235F, $2B5F
-		dc.w    $635A, $635A, $635B, $635B, $6358, $6358, $6359, $6359
-		dc.w    $6356, $6356, $6357, $6357, $6354, $6354, $6355, $6355
-		dc.w    $6352, $6352, $6353, $6353, $6350, $6350, $6351, $6351
-		dc.w    $634E, $634E, $634F, $634F, $634C, $634C, $634D, $634D
-		dc.w    $2360, $2B60, $2361, $2B61, $2362, $2B62, $2363, $2B63
-		dc.w    $2364, $2B64, $2365, $2B65, $2366, $2B66, $2367, $2B67
-		dc.w    $0000, $0000, $4340, $4341, $0000, $0000, $4342, $4343
-		dc.w    $4344, $4345, $4348, $4349, $4346, $4347, $434A, $434B
-		dc.w    $E35A, $E35A, $E35B, $E35B, $E358, $E358, $E359, $E359
-		dc.w    $E356, $E356, $E357, $E357, $E354, $E354, $E355, $E355
-		dc.w    $E352, $E352, $E353, $E353, $E350, $E350, $E351, $E351
-		dc.w    $E34E, $E34E, $E34F, $E34F, $E34C, $E34C, $E34D, $E34D
-;		dc.w	 0, $C80,  $9B,$43A1,$43A2,$43A3,$43A4,$43A5,$43A6,$43A7,$43A8,$43A9,$43AA,$43AB,$43AC,$43AD
-;		dc.w $43AE,$43AF,$43B0,$43B1,$43B2,$43B3,$43B4,$43B5,$43B6,$43B7,$43B8,$43B9,$43BA,$43BB,$43BC,$43BD
-;		dc.w $43BE,$43BF,$43C0,$43C1,$43C2,$43C3,$43C4,$63A0,$63A0,$63A0,$63A0,$63A0,$63A0,$63A0,$63A0,	   0
-;		dc.w	 0,$6340,$6344,	   0,	 0,$6348,$634C,$6341,$6345,$6342,$6346,$6349,$634D,$634A,$634E,$6343
-;		dc.w $6347,$4358,$4359,$634B,$634F,$435A,$435B,$6380,$6384,$6381,$6385,$6388,$638C,$6389,$638D,$6382
-;		dc.w $6386,$6383,$6387,$638A,$638E,$638B,$638F,$6390,$6394,$6391,$6395,$6398,$639C,$6399,$639D,$6392
-;		dc.w $6396,$6393,$6397,$639A,$639E,$639B,$639F,$4378,$4379,$437A,$437B,$437C,$437D,$437E,$437F,$235C
-;		dc.w $235D,$235E,$235F,$2360,$2361,$2362,$2363,$2364,$2365,$2366,$2367,$2368,$2369,$236A,$236B,	   0
-;		dc.w	 0,$636C,$636D,	   0,	 0,$636E,    0,$636F,$6370,$6371,$6372,$6373,	 0,$6374,    0,$6375
-;		dc.w $6376,$4358,$4359,$6377,	 0,$435A,$435B,$C378,$C379,$C37A,$C37B,$C37C,$C37D,$C37E,$C37F
-
-APM_CPZ:	dc.w $17E0,   $F,$43D1,$43D1,$43D1,$43D1,$43D2,$43D2,$43D3,$43D3,$43D4,$43D4,$43D5,$43D5,$43D6,$43D6
-		dc.w $43D7,$43D7
-
-APM_HPZ:	dc.w $1710,  $77,$62E8,$62E9,$62EA,$62EB,$62EC,$62ED,$62EE,$62EF,$62F0,$62F1,$62F2,$62F3,$62F4,$62F5
-		dc.w $62F6,$62F7,$62F8,$62F9,$62FA,$62FB,$62FC,$62FD,$62FE,$62FF,$42E8,$42E9,$42EA,$42EB,$42EC,$42ED
-		dc.w $42EE,$42EF,$42F0,$42F1,$42F2,$42F3,$42F4,$42F5,$42F6,$42F7,$42F8,$42F9,$42FA,$42FB,$42FC,$42FD
-		dc.w $42FE,$42FF,    0,$62E8,	 0,$62EA,$62E9,$62EC,$62EB,$62EE,$62ED,	   0,$62EF,    0,    0,$62F0
-		dc.w	 0,$62F2,$62F1,$62F4,$62F3,$62F6,$62F5,	   0,$62F7,    0,    0,$62F8,	 0,$62FA,$62F9,$62FC
-		dc.w $62FB,$62FE,$62FD,	   0,$62FF,    0,    0,$42E8,	 0,$42EA,$42E9,$42EC,$42EB,$42EE,$42ED,	   0
-		dc.w $42EF,    0,    0,$42F0,	 0,$42F2,$42F1,$42F4,$42F3,$42F6,$42F5,	   0,$42F7,    0,    0,$42F8
-		dc.w	 0,$42FA,$42F9,$42FC,$42FB,$42FE,$42FD,	   0,$42FF,    0
+; AniArt_Load:
+ include "_inc/LevDynPLCs.asm"
 		nop
 
 ; ===========================================================================
@@ -35717,10 +34432,10 @@ loc_1B286:
 		tst.w	($FFFFF63A).w
 		bne.s	loc_1B2E2
 		lea	($FFFFFE22).w,a1
-		cmpi.l	#$93B3B,(a1)+	; if the timer has passed 9:59...
-		nop			; ...do nothing since this has been nopped out
+;		cmpi.l	#$93B3B,(a1)+	; if the timer has passed 9:59...
+;		nop			; ...do nothing since this has been nopped out
 		addq.b	#1,-(a1)
-		cmpi.b	#$3C,(a1)
+		cmpi.b	#$3C,(a1); 60 decimal
 		bcs.s	loc_1B2E2
 		move.b	#0,(a1)
 		addq.b	#1,-(a1)
@@ -35765,13 +34480,13 @@ locret_1B318:
 ; ===========================================================================
 ; kills the player if the time has reached 9:59, except now it's unused due
 ; to its "beq" command being noped out above
-S1TimeOver:
-		clr.b	($FFFFFE1E).w
-		lea	($FFFFB000).w,a0
-		movea.l	a0,a2
-		bsr.w	KillSonic
-		move.b	#1,($FFFFFE1A).w
-		rts
+;S1TimeOver:
+;		clr.b	($FFFFFE1E).w
+;		lea	($FFFFB000).w,a0
+;		movea.l	a0,a2
+;		bsr.w	KillSonic
+;		move.b	#1,($FFFFFE1A).w
+;		rts
 ; ---------------------------------------------------------------------------
 
 loc_1B330:				; CODE XREF: HudUpdate+Cj
@@ -36731,1008 +35446,10 @@ j_Adjust2PArtPointer_1:		; CODE XREF: Debug_ShowItem+1Ap
 
 
 
-; ---------------------------------------------------------------------------
-; "MAIN LEVEL LOAD BLOCK" (after Nemesis)
-;
-; This struct array tells the engine where to find all the art associated with
-; a particular zone. Each zone gets four longwords, in which it stores four
-; pointers (in the lower 24 bits) and three jump table indeces (in the upper eight
-; bits). The assembled data looks something like this:
-;
-; aaBBBBBB
-; ccDDDDDD
-; EEEEEE
-; ffgghhii
-;
-; aa = index for primary pattern load request list
-; BBBBBB = unused, pointer to level art
-; cc = index for secondary pattern load request list
-; DDDDDD = pointer to 16x16 block mappings
-; EEEEEE = pointer to 128x128 block mappings
-; ff = unused, always 0
-; gg = unused, music track
-; hh = unused, palette
-; ii = palette
-;
-; Nemesis refers to this as the "main level load block". However, that name implies
-; that this is code (obviously, it isn't), or at least that it points to the level's
-; collision, object and ring placement arrays (it only points to palettes and 16x16
-; mappings although the 128x128 mappings do affect the actual level layout and collision)
-; ---------------------------------------------------------------------------
+ include "_inc/ArtLoadCues.asm"
+ even; dont see a lot of those around here, which is why this one was added by me
 
-; macro for declaring a "main level load block" (MLLB)
-levartptrs macro plc1,plc2,palette,art,map16x16,map128x128,music
-	dc.l art+(plc1<<24)
-	dc.l map16x16+(plc2<<24)
-	dc.l map128x128
-	dc.b 0,music,palette,palette
-	endm
-;FOR IDIOTS THAT DONT UNDERSTAND:
-;first number is the first PLC
-;second number is second PLC
-;third number is palette
-;then tiles, blocks, chunks, and music
-; MainLoadBlocks:
-LevelArtPointers:
-		levartptrs  4,  5,  4, Nem_GHZ, Map16_GHZ, UnkComp_Map128_GHZ, bgm_GHZ	;   0 ; GHZ  ; GREEN HILL ZONE
-		levartptrs  6,  7,  5, Nem_MTZ, BM16_MTZ,  BM128_MTZ, bgm_LZ			;   1 ; LZ   ; LABYRINTH ZONE
-		levartptrs  8,  9,  6, Nem_CPZ, Map16_CPZ, Map128_CPZ, bgm_MZ		;   2 ; CPZ  ; CHEMICAL PLANT ZONE
-		levartptrs $A, $B,  7, Nem_EHZ, Map16_EHZ, Map128_EHZ, bgm_SLZ		;   3 ; EHZ  ; EMERALD HILL ZONE
-		levartptrs $C, $D,  8, Nem_HPZ, Map16_HPZ, Map128_HPZ, bgm_SYZ		;   4 ; HPZ  ; HIDDEN PALACE ZONE
-		levartptrs $E, $F,  9, Nem_EHZ, Map16_EHZ, Map128_EHZ, bgm_SBZ		;   5 ; HTZ  ; HILL TOP ZONE
-		levartptrs $1A,$1B,$13, Nem_WZ,  Map16_WZ,  Map128_WZ,  bgm_SBZ;0,  0,$13, Nem_WZ,  Map16_WZ,  Map128_WZ,  bgm_SBZ	;   6 ; LEV6 ; LEVEL 6 (UNUSED, SONIC 1 ENDING)
-		levartptrs $1C,$23,$14, Nem_DHZ,  Map16_DHZ,  Map128_DHZ,  bgm_GHZ
-		levartptrs $21,$21,$15, Nem_CNZ,  Map16_CNZ,  Map128_CNZ,  bgm_GHZ
-		levartptrs $1E,$23,$16, Nem_OOZ,  Map16_OOZ,  Map128_OOZ,  bgm_GHZ
-		levartptrs $1F,$22,$17, Nem_NGHZ,  Map16_NGHZ,  Map128_NGHZ,  bgm_GHZ
-		levartptrs $20,$20,$1A, Nem_SSZ,  Map16_SSZ,  Map128_SSZ,  bgm_GHZ
-; ---------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LISTS
-;
-; Pattern load request lists are simple structures used to load
-; Nemesis-compressed art for sprites.
-;
-; The decompressor predictably moves down the list, so request 0 is processed first, etc.
-; This only matters if your addresses are bad and you overwrite art loaded in a previous request.
-;
-
-; NOTICE: The load queue buffer can only hold $10 (16) load requests. None of the routines
-; that load PLRs into the queue do any bounds checking, so it's possible to create a buffer
-; overflow and completely screw up the variables stored directly after the queue buffer.
-; (in my experience this is a guaranteed crash or hang)
-;
-; Many levels queue more than 16 items overall, but they don't exceed the limit because
-; their PLRs are split into multiple parts (like PLC_GHZ and PLC_GHZ2) and they fully
-; process the first part before requesting the rest.
-; ---------------------------------------------------------------------------
-
-;---------------------------------------------------------------------------------------
-; Table of pattern load request lists. Remember to use word-length data when adding lists
-; otherwise you'll break the array.
-;---------------------------------------------------------------------------------------
-plreq macro toVRAMaddr,fromROMaddr
-	dc.l	fromROMaddr		; art to load
-	dc.w	(toVRAMaddr<<5)		; VRAM address to load it at (multiplied by $20)
-	endm
-PLC_SSZ:	dc.w ((PLC_SSZ_End-PLC_SSZ-$02)/6)-1
-		plreq 0, Nem_SSZ
-		plreq $300, Nem_Crocobot
-PLC_SSZ_End:
-ArtLoadCues:	dc.w PLC_Main-ArtLoadCues,PLC_Main2-ArtLoadCues
-		dc.w PLC_Explode-ArtLoadCues,PLC_GameOver-ArtLoadCues
-		dc.w PLC_GHZ-ArtLoadCues,PLC_GHZ2-ArtLoadCues
-		dc.w PLC_MTZ-ArtLoadCues,PLC_MTZ2-ArtLoadCues
-		dc.w PLC_CPZ-ArtLoadCues,PLC_CPZ2-ArtLoadCues
-		dc.w PLC_EHZ-ArtLoadCues,PLC_EHZ2-ArtLoadCues
-		dc.w PLC_HPZ-ArtLoadCues,PLC_HPZ2-ArtLoadCues
-		dc.w PLC_HTZ-ArtLoadCues,PLC_HTZ2-ArtLoadCues
-		dc.w PLC_S1TitleCard-ArtLoadCues,PLC_Boss-ArtLoadCues
-		dc.w PLC_Signpost-ArtLoadCues,PLC_S1SpecialStage-ArtLoadCues;10 and 11 seems like
-		dc.w PLC_S1SpecialStage-ArtLoadCues,PLC_GHZAnimals-ArtLoadCues;12,13
-		dc.w PLC_LZAnimals-ArtLoadCues,PLC_CPZAnimals-ArtLoadCues;14,15
-		dc.w PLC_EHZAnimals-ArtLoadCues,PLC_HPZAnimals-ArtLoadCues;16,17
-		dc.w PLC_HTZAnimals-ArtLoadCues,PLC_WZ-ArtLoadCues;PLC_HTZAnimals-ArtLoadCues;LeftoverArt_Unknown-ArtLoadCues;18,19
-		dc.w PLC_DHZ-ArtLoadCues,PLC_SSZ-ArtLoadCues;LeftoverArt_Unknown+2-ArtLoadCues,LeftoverArt_Unknown+4-ArtLoadCues;1A,1B
-		dc.w PLC_OOZ-ArtLoadCues,PLC_NGHZ-ArtLoadCues;LeftoverArt_Unknown+6-ArtLoadCues,LeftoverArt_Unknown+8-ArtLoadCues
-		dc.w PLC_SSZ-ArtLoadCues;,PLC_NGHZ-ArtLoadCues
-		dc.w PLC_CNZ-ArtLoadCues,PLC_NGHZ_2-ArtLoadCues
-		dc.w PLC_OOZ_2-ArtLoadCues,PLC_DHZ_2-ArtLoadCues
-		dc.w PLC_OOZ_2-ArtLoadCues,PLC_DHZ_2-ArtLoadCues
-; macro for a pattern load request
-
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Standard 1 - loaded for every level
-; --------------------------------------------------------------------------------------
-PLC_Main:	dc.w ((PLC_Main_End-PLC_Main)/6)-1
-		plreq $47C, Nem_Lamppost
-		plreq $6CA, Nem_HUD
-		plreq $7D4, Nem_Lives
-		plreq $6BC, Nem_Ring
-		plreq $4AC, Nem_Points
-PLC_Main_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Standard 2 - loaded for every level
-; --------------------------------------------------------------------------------------
-PLC_Main2:	dc.w ((PLC_Main2_End-PLC_Main2)/6)-1
-		plreq $680, Nem_Monitors
-		plreq $4BE, Nem_Shield
-		plreq $4DE, Nem_Stars
-PLC_Main2_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Explosion - loaded for every level AFTER the title card
-; --------------------------------------------------------------------------------------
-PLC_Explode:	dc.w ((PLC_Explode_End-PLC_Explode)/6)-1
-		plreq $5A0, Nem_Explosion
-PLC_Explode_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Game/Time over
-; --------------------------------------------------------------------------------------
-PLC_GameOver:	dc.w ((PLC_GameOver_End-PLC_GameOver)/6)-1
-		plreq $55E, Nem_GameOver
-PLC_GameOver_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Green Hill Zone primary
-; --------------------------------------------------------------------------------------
-PLC_GHZ:	dc.w ((PLC_GHZ_End-PLC_GHZ)/6)-1
-		plreq 0, Nem_GHZ
-		plreq $470, Nem_GHZ_Piranha
-		plreq $4A0, Nem_VSpikes
-		plreq $4A8, Nem_VSpring
-		plreq $4B8, Nem_HSpring
-		plreq $4C6, Nem_GHZ_Bridge
-		plreq $4D0, Nem_SwingPlatform
-		plreq $4E0, Nem_Motobug
-;		plreq $6C0, Nem_GHZ_Rock
-PLC_GHZ_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Green Hill Zone secondary
-; --------------------------------------------------------------------------------------
-PLC_GHZ2:	dc.w ((PLC_GHZ2_End-PLC_GHZ2)/6)-1
-		plreq $470, Nem_GHZ_Piranha
-PLC_GHZ2_End:
-PLC_MTZ:	dc.w ((PLC_MTZ_End-PLC_MTZ-$02)/6)-1
-		plreq 0, Nem_MTZ
-		dc.l    Mz_Teleport             ; loc_75382
-		dc.w    $6780   
-		dc.l    ArtNem_MtzWheel        ; loc_7461C
-		dc.w    $6F00 
-		dc.l    ArtNem_MtzWheelIndent         ; loc_74A74
-		dc.w    $7E00   
-		dc.l    ArtNem_LavaCup
-		dc.w    $7F20  
-		dc.l    ArtNem_BoltEnd_Rope
-		dc.w    $7FA0
-		dc.l    ArtNem_MtzSteam		; loc_74BEA  
-		dc.w    $80A0
-		dc.l    ArtNem_MtzSpikeBlock		; loc_74B1C  
-		dc.w    $8280
-		dc.l    ArtNem_MtzSpike              ; loc_74CF4
-		dc.w    $8380
-PLC_MTZ_End:
-PLC_WZ:		dc.w ((PLC_WZ_End-PLC_WZ-$02)/6)-1
-		plreq 0, Nem_WZ
-PLC_WZ_End:
-PLC_DHZ:	dc.w ((PLC_DHZ_End-PLC_DHZ-$02)/6)-1
-		plreq 0, Nem_DHZ
-PLC_DHZ_End:
-PLC_CNZ:	dc.w ((PLC_CNZ_End-PLC_CNZ-$02)/6)-1
-		plreq 0, Nem_CNZ
-PLC_CNZ_End:
-PLC_OOZ:	dc.w ((PLC_OOZ_End-PLC_OOZ-$02)/6)-1
-		plreq 0, Nem_OOZ
-		dc.l    ArtNem_OOZElevator            ; loc_75F70
-		dc.w    $6000   
-		dc.l    ArtNem_SpikyThing     ; loc_76060
-		dc.w    $6180 
-		dc.l    ArtNem_BurnerLid      ; loc_76258
-		dc.w    $6580  
-		dc.l    ArtNem_StripedBlocksVert         ; loc_762EE
-		dc.w    $6640 
-		dc.l    ArtNem_Oilfall		 ; loc_7635A
-		dc.w    $66C0    
-		dc.l    ArtNem_Oilfall2           ; loc_764D6
-		dc.w    $68C0		  
-PLC_OOZ_End:
-PLC_NGHZ:	dc.w ((PLC_NGHZ_End-PLC_NGHZ-$02)/6)-1
-		plreq 0, Nem_NGHZ
-		dc.l    Nghz_Water_Surface      ; loc_78270
-		dc.w    $8000   
-		dc.l    Nghz_Leaves             ; loc_78356
-		dc.w    $8200    
-		dc.l    ArtNem_ArrowAndShooter      ; loc_783E2
-		dc.w    $82E0  
-		dc.l    Nghz_Water_Splash       ; loc_78540
-		dc.w    $8500  
-PLC_NGHZ_End:;Nem_NGHZ
-PLC_NGHZ_2:
-loc_247B4:
-		dc.w    (((loc_247D4-loc_247B4-$02)/$06)-$01) ; Auto Detect Number of Sprites Esrael L. G. Neto
-		dc.l    Air_Bubbles_Numbers     ; loc_79AC0
-		dc.w    $A000 
-		dc.l    Nem_VSpikes		  ; loc_7914E
-		dc.w    $8680   
-		dc.l    Nem_DSpring;ArtNem_LeverSpring       ; loc_798F4
-		dc.w    $8800   
-		dc.l    Nem_VSpring2;ArtNem_VrtclSprng         ; loc_78658
-		dc.w    $8B80   
-		dc.l    Nem_HSpring2;ArtNem_HrzntlSprng       ; loc_78774
-		dc.w    $8E00    
-loc_247D4:
-PLC_OOZ_2:
-loc_24684: 
-		dc.w    (((loc_246C2-loc_24684-$02)/$06)-$01) ; Auto Detect Number of Sprites Esrael L. G. Neto
-		dc.l    ArtNem_OOZBall		; loc_76602 
-		dc.w    $6A80 
-		dc.l    ArtNem_LaunchBall              ; loc_76722
-		dc.w    $6D00 
-		dc.l    ArtNem_OOZPlatform ; loc_76A12
-		dc.w    $73A0  
-		dc.l    ArtNem_PushSpring   ; loc_76CA6
-		dc.w    $78A0       
-		dc.l    ArtNem_OOZSwingPlat      ; loc_76E68
-		dc.w    $7C60 
-		dc.l    ArtNem_Button		  ; loc_78580
-		dc.w    $8480   
-		dc.l    Nem_VSpikes;ArtNem_Spikes		  ; loc_7914E
-		dc.w    $8680   
-		dc.l    ArtNem_DignlSprng         ; loc_7883E
-		dc.w    $8780		
-		dc.l    Nem_VSpring2;ArtNem_VrtclSprng         ; loc_78658
-		dc.w    $8B80   
-		dc.l    Nem_HSpring2;ArtNem_HrzntlSprng       ; loc_78774
-		dc.w    $8E00 
-Dust_Hill_Sprites_1:   
-loc_246C2:
-PLC_DHZ_2:
-loc_246E2: 
-		dc.w    (((loc_24708-loc_246E2-$02)/$06)-$01) ; Auto Detect Number of Sprites Esrael L. G. Neto
-		dc.l    ArtNem_HorizSpike   ; loc_79A44        
-		dc.w    $8580 
-		dc.l    Nem_VSpikes;ArtNem_Spikes		  ; loc_7914E
-		dc.w    $8680   
-		dc.l    ArtNem_DHZGateLog              ; loc_77614
-		dc.w    $8780  
-		dc.l    ArtNem_LeverSpring       ; loc_798F4
-		dc.w    $8800  
-		dc.l    Nem_VSpring2;ArtNem_VrtclSprng         ; loc_78658
-		dc.w    $8B80   
-		dc.l    Nem_HSpring2;ArtNem_HrzntlSprng       ; loc_78774
-		dc.w    $8E00   
-Casino_Night_Sprites_1:   
-loc_24708:
-;End_Level_Results_Sprites:	
-PLC_MTZ2:	dc.w ((PLC_MTZ2_End-PLC_MTZ2-$02)/6)-1
-		dc.l    ArtNem_Button		  ; loc_78580
-		dc.w    $8480     
-		plreq $434, Nem_VSpikes
-		plreq $43C, Nem_DSpring
-		plreq $45C, Nem_VSpring2
-		plreq $470, Nem_HSpring2
-		dc.l    ArtNem_MtzAsstBlocks            ; loc_74DB6
-		dc.w    $A000
-		dc.l    ArtNem_MtzLavaBubble          ; loc_74E2C
-		dc.w    $A6C0 
-		dc.l    ArtNem_MTZ_Platform  ; loc_74F52    
-		dc.w    $A7E0  
-		dc.l    ArtNem_MtzCog            ; loc_752A0
-		dc.w    $ABE0       
-PLC_MTZ2_End
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Chemical Plant Zone primary
-; --------------------------------------------------------------------------------------
-PLC_CPZ:	dc.w ((PLC_CPZ_End-PLC_CPZ-$02)/6)-1
-		plreq 0, Nem_CPZ
-		plreq $3D0, Nem_CPZ_Unknown
-		plreq $400, Nem_CPZ_FloatingPlatform
-		dc.l    Cpz_Metal_Structure     ; loc_77A1C  
-		dc.w    $6E60
-		dc.l    ArtNem_ConstructionStripes      ; loc_77C66
-		dc.w    $7280 
-		dc.l    ArtNem_CPZBooster       ; loc_77942
-		dc.w    $7380
-		dc.l    ArtNem_CPZElevator            ; loc_77684
-		dc.w    $7400  
-		dc.l    ArtNem_CPZAnimatedBits ; loc_77CD2 
-		dc.w    $7600  
-		dc.l    ArtNem_CPZTubeSpring        ; loc_78074
-		dc.w    $7C00   
-		dc.l    Nem_HPZ_WaterSurface;Water_Surface           ; loc_777D2  
-		dc.w    $8000
-		dc.l    ArtNem_CPZStairBlock           ; loc_77EB4
-		dc.w    $8300 
-		dc.l    ArtNem_CPZMetalBlock
-		dc.w    $8600 
-PLC_CPZ_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Chemical Plant Zone secondary
-; --------------------------------------------------------------------------------------
-PLC_CPZ2:	dc.w ((PLC_CPZ2_End-PLC_CPZ2)/6)-1
-		plreq $434, Nem_VSpikes
-		dc.l    ArtNem_CPZDroplet               ; loc_779AA
-		dc.w    $8780  
-;		plreq $43C, Nem_DSpring
-		plreq $45C, Nem_VSpring2
-		plreq $470, Nem_HSpring2
-PLC_CPZ2_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Emerald Hill Zone primary
-; --------------------------------------------------------------------------------------
-PLC_EHZ:	dc.w ((PLC_EHZ_End-PLC_EHZ)/6)-1
-		plreq 0, Nem_EHZ
-		plreq $39E, Nem_EHZ_Fireball
-		plreq $3AE, Nem_EHZ_Waterfall
-		plreq $3C6, Nem_EHZ_Bridge
-		plreq $3CE, Nem_HTZ_Seesaw
-		plreq $434, Nem_VSpikes
-		plreq $43C, Nem_DSpring
-		plreq $45C, Nem_VSpring2
-		plreq $470, Nem_HSpring2
-PLC_EHZ_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Emerald Hill Zone secondary
-; --------------------------------------------------------------------------------------
-PLC_EHZ2:	dc.w ((PLC_EHZ2_End-PLC_EHZ2)/6)-1
-		plreq $560, Nem_Shield
-		plreq $4AC, Nem_Points
-		plreq $3E6, Nem_Buzzer
-		plreq $402, Nem_Snail
-		plreq $41C, Nem_Masher
-PLC_EHZ2_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Hidden Palace Zone primary
-; --------------------------------------------------------------------------------------
-PLC_HPZ:	dc.w ((PLC_HPZ_End-PLC_HPZ)/6)-1
-		plreq 0, Nem_HPZ
-		plreq $300, Nem_HPZ_Bridge
-		plreq $315, Nem_HPZ_Waterfall
-		plreq $34A, Nem_HPZ_Platform
-		plreq $35A, Nem_HPZ_PulsingBall
-		plreq $37C, Nem_HPZ_Various
-;		dc.l    Hpz_Unknow_Platform     ; loc_75DD6   
-;		dc.w    $6F80 ;384 if divided by 2, yes i used an online calculator i'm too lazy
-		plreq $384, Hpz_Unknow_Platform;originally $374
-		plreq $392, Nem_HPZ_Emerald
-		plreq $400, Nem_HPZ_WaterSurface
-PLC_HPZ_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Hidden Palace Zone secondary
-; --------------------------------------------------------------------------------------
-PLC_HPZ2:	dc.w ((PLC_HPZ2_End-PLC_HPZ2)/6)-1
-		plreq $500, Nem_Redz
-		plreq $3C4, Nem_Triceratops
-		plreq $45C, Nem_VSpring2
-		plreq $430, Nem_HPZ_Piranha
-word_1C1E2:	plreq $530, Nem_Bat
-PLC_HPZ2_End:
-		; unused PLR entries
-		plreq $300, Nem_Crocobot
-		plreq $32C, Nem_Buzzer
-		plreq $350, Nem_Bat
-		plreq $3C4, Nem_Triceratops
-		plreq $500, Nem_Redz
-		plreq $530, Nem_HPZ_Piranha
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Hill Top Zone primary
-; --------------------------------------------------------------------------------------
-PLC_HTZ:	dc.w ((PLC_HTZ_End-PLC_HTZ)/6)-1
-		plreq 0, Nem_EHZ
-		plreq $1FC, Nem_HTZ
-		plreq $500, Nem_HTZ_AniPlaceholders
-		plreq $39E, Nem_EHZ_Fireball
-		plreq $3AE, Nem_HTZ_Fireball
-		plreq $3BE, Nem_HTZ_AutomaticDoor
-		plreq $3C6, Nem_EHZ_Bridge
-		plreq $3CE, Nem_HTZ_Seesaw
-		plreq $434, Nem_VSpikes
-		plreq $43C, Nem_DSpring
-PLC_HTZ_End:
-		; unused PLR entries
-		plreq $45C, Nem_VSpring2
-		plreq $470, Nem_HSpring2
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Hill Top Zone secondary
-; --------------------------------------------------------------------------------------
-PLC_HTZ2:	dc.w ((PLC_HTZ2_End-PLC_HTZ2)/6)-1
-		plreq $3E6, Nem_HTZ_Lift
-PLC_HTZ2_End:
-		; unused PLR entries
-		plreq $3E6, Nem_Buzzer
-		plreq $402, Nem_Snail
-		plreq $41C, Nem_Masher
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Sonic 1 title card
-; --------------------------------------------------------------------------------------
-PLC_S1TitleCard:dc.w ((PLC_S1TitleCard_End-PLC_S1TitleCard)/6)-1
-		plreq $580, Nem_S1TitleCard
-PLC_S1TitleCard_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; End of zone bosses
-; --------------------------------------------------------------------------------------
-PLC_Boss:	dc.w ((PLC_Boss_End-PLC_Boss)/6)-1
-		plreq $460, Nem_BossShip
-		plreq $4C0, Nem_EHZ_Boss
-		plreq $540, Nem_EHZ_Boss_Blades
-PLC_Boss_End:
-		; unused PLR entries
-		plreq $400, Nem_BossShip
-		plreq $460, Nem_CPZ_ProtoBoss
-		plreq $4D0, Nem_BossShipBoost
-		plreq $4D8, Nem_Smoke
-		plreq $4E8, Nem_EHZ_Boss
-		plreq $568, Nem_EHZ_Boss_Blades
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; End of level signpost
-; --------------------------------------------------------------------------------------
-PLC_Signpost:	dc.w ((PLC_Signpost_End-PLC_Signpost)/6)-1
-		plreq $680, Nem_Signpost
-		plreq $4B6, Nem_S1BonusPoints
-		plreq $462, Nem_BigFlash
-PLC_Signpost_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Sonic 1 Special Stage, although since it's blank, using it will crash the game
-; unless you remove the +$10
-; --------------------------------------------------------------------------------------
-; PLC_Invalid:
-PLC_S1SpecialStage:	dc.w ((PLC_S1SpecialStage_End-PLC_S1SpecialStage)/6)+$10
-PLC_S1SpecialStage_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Green Hill Zone animals
-; --------------------------------------------------------------------------------------
-PLC_GHZAnimals:	dc.w ((PLC_GHZAnimals_End-PLC_GHZAnimals)/6)-1
-		plreq $580, Nem_Bunny
-		plreq $592, Nem_Flicky
-PLC_GHZAnimals_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Labyrinth Zone animals
-; --------------------------------------------------------------------------------------
-PLC_LZAnimals:	dc.w ((PLC_LZAnimals_End-PLC_LZAnimals)/6)-1
-		plreq $580, Nem_Penguin
-		plreq $592, Nem_Seal
-PLC_LZAnimals_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Chemical Plant Zone animals
-; --------------------------------------------------------------------------------------
-PLC_CPZAnimals:	dc.w ((PLC_CPZAnimals_End-PLC_CPZAnimals)/6)-1
-		plreq $580, Nem_Squirrel
-		plreq $592, Nem_Seal
-PLC_CPZAnimals_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Emerald Hill Zone animals
-; --------------------------------------------------------------------------------------
-PLC_EHZAnimals:	dc.w ((PLC_EHZAnimals_End-PLC_EHZAnimals)/6)-1
-		plreq $580, Nem_Pig
-		plreq $592, Nem_Flicky
-PLC_EHZAnimals_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Hidden Palace Zone animals
-; --------------------------------------------------------------------------------------
-PLC_HPZAnimals:	dc.w ((PLC_HPZAnimals_End-PLC_HPZAnimals)/6)-1
-		plreq $580, Nem_Pig
-		plreq $592, Nem_Chicken
-PLC_HPZAnimals_End:
-; --------------------------------------------------------------------------------------
-; PATTERN LOAD REQUEST LIST
-; Hill Top Zone animals
-; --------------------------------------------------------------------------------------
-PLC_HTZAnimals:	dc.w ((PLC_HTZAnimals_End-PLC_HTZAnimals)/6)-1
-		plreq $580, Nem_Bunny
-		plreq $592, Nem_Chicken
-PLC_HTZAnimals_End:
-
-; --------------------------------------------------------------------------------------
-; Leftover art from an unknown game, overwrites the other Sonic 1 PLC entries
-; --------------------------------------------------------------------------------------
-LeftoverArt_Unknown:dc.b   0,  1,  0, $D,  0,  2,  0,  2,  0,  4,  0,  0,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4
-		dc.b   4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  4,  2,  4,  4,  4,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2,  2,  2,  4,  4,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  4,  2,  4
-		dc.b   2,  2,  4,  2,  4,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2, $A,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  4,  2,  2,  2,  2,  4,  2,  4,  4,  4,  2,  2,  2
-		dc.b   2,  4,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2, $A,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  4,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2
-		dc.b   2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  4,  4,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  4,  4,  2,  4,  2,  2, $A,  4,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  2,  2,  2,  2,  2, $A,  2
-		dc.b   2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2, $A,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  4,  2,  4,  4,  2,  4,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  2,  2,  2,  4,  2,  4,  2,  2
-		dc.b   4,  4,  2,  4,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4, $A,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  4,  2,  4,  2,  4,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  6,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   4, $A,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  4
-		dc.b   2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2
-		dc.b   2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  4
-		dc.b   4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  4,  4,  4,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  4,  2,  2,  4,  4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  4,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  4,  2,  2,  2,  4,  2,  2,  2,  4,  2,  4
-		dc.b   2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2, $A,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4
-		dc.b   2,  2,  2,  2,  4,  4,  4,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  4,  4,  2,  2,  4,  4,  4,  4,  2,  4,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  4,  4
-		dc.b   2,  4,  2,  2,  4,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  4,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2, $A,  2,  4,  2,  2,  4,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  4,  2,  2,  4,  4,  4
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  4,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  4,  4
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  4,  2,  4,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  4,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   4,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  4,  2,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  4,  4,  4,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   4,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   4,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b   4,  4,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2
-		dc.b   2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b  $A,  2,  2,  2,  2,  2,  2,  2,  6,  6,  6,  2,  2,  6,  6, $A,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  4, $A,  4,  2,  2,  4,  2, $A,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   6,  6,  2,  2,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  6,  6,  4,  2,  6,  2,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  4,  2,  2,  2,  2,  4,  4,  2,  2,  2,  6
-		dc.b   8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  4,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  6,  4
-		dc.b   6,  6,  6,  6,  6,  8,  6,  4,  8,  8,  8,  8,  8,  8,  6,  6,  8,  6,  6,  6,  6,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  6
-		dc.b   6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  2,  6,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  6,  8
-		dc.b   8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  6,  2,  6
-		dc.b   6,  4,  6,  8,  8,  6,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  6,  6,  6,  2,  4,  2,  6,  6,  6,  6,  6
-		dc.b   8,  6,  8,  6,  6,  6,  6,  8,  8,  8,  6,  8,  6,  6,  6,  6,  6,  6,  4,  2,  2,  2,  4,  4,  4,  2,  2,  2,  2,  2,  4,  4
-		dc.b   4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  6,  8,  8
-		dc.b   8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  4,  4,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  6,  6,  2,  6,  6,  6,  8
-		dc.b   8,  6,  8,  8,  8,  8,  8,  8,  0,  0, $E,  0,  0,  0,  0,  8,  8,  8,  6,  6,  8,  8,  6,  6,  6,  6,  6,  6,  6,  8,  6,  6
-		dc.b   6,  6,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  6,  6,  2,  4,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  4,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  6,  8,  8,  8
-		dc.b   8,  8,  8,  8,  8,  8,  6,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  6,  6,  6,  6,  4,  8,  8,  8
-		dc.b   8,  8,  8,  8,  0,  0, $E,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  0,  8,  8,  8,  6,  6,  6,  6,  8,  8,  8,  8,  8,  6,  8
-		dc.b   8,  0,  0,  0, $E,  0,  0,  0,  0,  0, $E,  0,  8,  8,  8,  8,  6,  8,  6,  6,  6,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8
-		dc.b   8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4, $A,  6,  6,  6,  8,  8,  8,  8, $E
-		dc.b   0,  0,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, $E,  8,  8,  8,  8,  8,  8,  8,  6,  8,  8,  8,  0
-		dc.b   0, $E,  0,  0,  0,  0,  0, $E,  0,  0,  0,  0,  0, $E,  0,  0,  8,  8,  6,  8,  6,  6,  6,  2,  2,  2,  2,  2,  2, $A,  4,  4
-		dc.b   2,  2,  2,  2,  2,  4,  4,  2,  2,  4,  4,  2,  4,  4,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8
-		dc.b   8,  8,  8,  8,  6,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  4,  4,  4,  2,  2,  4,  6,  6,  8,  8,  8,  8,  0,  0,  0
-		dc.b   0, $E,  0,  0,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  0, $E,  0,  0,  0, $E,  0, $E,  0
-		dc.b   0,  0,  0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  0,  0,  0, $E,  0,  8,  8,  8,  6,  6,  6,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  4,  6,  8,  8,  8,  8,  8,  8
-		dc.b   8,  8,  8,  6,  4,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  8,  8,  4,  2,  8,  6,  8,  8,  0,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  8,  8,  8,  6,  6,  6,  2,  2,  4,  4,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  6,  8,  8,  8,  8,  8,  8,  8
-		dc.b   8,  8,  6,  6,  2,  4,  2,  2,  2,  2,  2,  2, $A,  2,  2,  2,  4,  2,  2,  2,  2,  6,  6,  6,  8,  8,  0,  0,  0,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  0,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
-		dc.b   0,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  8,  6,  8,  8,  6,  6,  6,  6,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2, $A,  2,  6,  6,  6,  6,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8
-		dc.b   8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  4,  2,  2,  2,  6,  8,  6,  6,  8,  0,  0,  0, $E,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, $E,  0
-		dc.b   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  8,  8,  8,  6,  6,  6,  6,  2,  6
-		dc.b   8,  8,  2,  8,  2,  2,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  2,  2,  6,  2,  2,  4,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8
-		dc.b   6,  4,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  4,  2,  2,  4,  4,  6,  2,  2,  6,  8,  0, $E,  0,  0,  0,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0, $E,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  0,  0,  0,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  8,  6,  8,  8,  6,  6,  6,  8
-		dc.b   8,  8,  8,  8,  6,  6,  6,  6,  6,  8,  6,  6,  6,  6,  2,  6,  6,  6,  6,  6,  6,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2, $A,  2,  2,  2,  4,  2,  2,  8,  6,  2,  6,  8,  8,  0,  0,  0,  0,  0,  0,  0, $E
-		dc.b   0,  0, $E,  0,  0,  0,  0,  0,  2,  2,  2,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  0,  0,  0, $E,  0,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  8,  8,  8,  6,  6,  8
-		dc.b   6,  8,  6,  6,  8,  8,  8,  8,  6,  6,  6,  8,  8,  8,  6,  6,  6,  8,  6,  6,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  8,  2,  8,  8,  8,  0,  0,  0,  0,  0,  0,  0,  0,  0
-		dc.b   0,  0,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
-		dc.b   0,  0,  0, $E,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  8,  8,  8,  8
-		dc.b   8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  8,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2
-		dc.b   4,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  8,  8,  8,  8,  8,  0, $E,  0,  0,  0,  0,  0, $E,  0,  0
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  8,  8,  8, $E,  0,  0,  0,  0,  0,  0, $E,  0,  0,  0,  0,  0, $E
-		dc.b   0,  2,  2,  2,  2,  8,  6,  6,  8,  8,  6,  8,  0,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, $E,  0, $E,  0,  8
-		dc.b   8,  8,  8, $E,  0,  0, $E,  0, $E,  0,  0,  0,  0, $E,  0,  0,  8,  8,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6, $A, $A,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  4,  2,  2,  2,  2,  2,  8,  6,  8,  8, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  4
-		dc.b   2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  8,  8,  8,  8,  8,  8,  8,  8,  8,  2,  4,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  6,  8,  8,  8,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  0, $E,  0,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6, $A, $A,  6,  6
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  4,  4,  2,  2,  2,  8,  8,  6,  8,  8,  0,  0,  0,  0,  0,  0,  0,  0,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  6,  6,  6,  8,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
-		dc.b  $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  6,  6,  8,  6,  6
-		dc.b   6,  6,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  8,  8,  8,  8,  6,  0,  0,  0,  0,  0,  0,  0, $E,  2,  2,  4,  4
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  6,  6,  6,  8,  8,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6, $A, $A,  0,  8,  8,  6
-		dc.b   8,  8,  6,  6,  8,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  8,  8,  8, $E,  0,  0,  0, $E,  0,  0,  0,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  6,  8,  8,  0,  0,  0,  0, $E,  0,  0,  0,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0, $E,  0,  0,  0,  0, $E,  0,  0,  0,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6, $A, $A,  0,  0,  0, $E,  0
-		dc.b   8,  8,  8,  8,  6,  6,  6,  2,  2,  2,  2,  4,  2,  2,  2,  2,  6,  6,  8,  0,  0,  0,  0,  0,  0,  0,  0,  2,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  8,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6, $A, $A,  0, $E,  0,  0,  0,  0
-		dc.b   0,  0,  8,  8,  8,  8,  6,  6,  6,  6,  2,  2,  2,  2,  2,  8,  6,  8,  8, $E,  0,  0,  0,  0,  0,  0,  0,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  8,  8,  0,  0,  0,  0,  0,  0,  0,  0,  0
-		dc.b  $E,  0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6, $A, $A,  0,  0,  0,  0,  0,  0,  0
-		dc.b   0, $E,  0,  0,  8,  8,  8,  8,  8,  8,  6,  6,  2,  2,  4,  8,  6,  8,  8,  0,  0,  0,  0,  0,  0,  0,  2,  2,  4,  2,  2,  4
-		dc.b   4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  8,  0,  0, $E,  0, $E,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0, $E,  0,  0,  0,  0,  0,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6, $A, $A,  0,  0,  0,  0,  0,  0,  0,  0
-		dc.b   0,  0,  0, $E,  0,  0,  8,  6,  6,  8,  6,  6,  8,  6,  6,  8,  8,  8,  0,  0,  0, $E,  0,  0,  0,  0,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2, $A,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  4,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  8,  8,  8,  0,  0, $E,  0
-		dc.b   0,  0, $E,  0,  0,  0,  2,  4,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6, $A, $A,  0,  0, $E,  0,  0,  0,  0,  0,  0
-		dc.b   0,  0, $E,  0,  0,  0, $E,  0,  8,  6,  8,  6,  6,  8,  8,  8,  6,  8,  0,  0,  0,  0,  0,  0,  0, $E,  2,  2,  2,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  4,  4,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  4,  2,  2,  4,  4,  2,  4,  2,  2,  8,  8
-		dc.b   8,  8,  4,  2,  2,  2,  4,  2,  4,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  6,  6,  0, $E,  0,  0,  0, $E,  0,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0,  0,  0,  0,  0,  8,  8,  6,  6,  8,  8,  6,  6,  0,  0,  0,  0,  0,  0,  0,  0,  2,  2,  2,  2,  4,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  4,  4,  2,  4,  2,  2
-		dc.b   2,  2,  2,  4,  4,  2,  4,  2,  4,  2,  4,  2,  2,  2, $A,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b   4,  4,  2,  2,  4,  4,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  2,  2,  2,  2,  0, $E,  0,  0,  0,  0,  0, $E
-		dc.b   0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  8,  8,  8,  8,  8,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  4,  4,  2,  2,  2,  2,  2
-		dc.b   4,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2,  4,  4,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  4,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  4,  2,  4,  2,  2,  2,  4,  2,  0,  0,  0,  0,  0
-		dc.b   0,  0,  0,  0,  0, $E,  0,  0,  0,  0, $E,  0,  0, $E,  0,  0,  0, $E,  0,  0,  0,  0,  0, $E,  0,  2,  4,  4,  2,  2,  2,  2
-		dc.b   2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  2,  2
-		dc.b   2,  4,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  4,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  4,  2,  2,  2,  2,  4,  2,  4,  4,  2, $E,  0,  0
-		dc.b  $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  2,  2,  2,  2,  2,  4, $A,  2
-		dc.b   4,  2,  4,  2,  2,  4,  2,  4,  2,  4,  2,  4,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  4,  4,  2,  2,  2,  2,  2,  4,  2,  4,  4,  2,  4,  4,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  4,  4,  4,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2, $E,  0, $E,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  2,  2,  4,  4,  2,  4,  2,  4,  2
-		dc.b   4,  2,  2,  2,  4,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  4,  2,  4,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  4,  2,  2,  2,  2
-		dc.b   2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  4
-		dc.b   2,  4,  2,  2,  0,  0, $E,  0,  0,  0,  0,  0,  0,  0, $E,  0,  0,  0,  0,  0, $E,  0,  6,  2,  2,  4,  4,  2,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  4,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2
-		dc.b   4,  2, $A,  2,  2,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  6,  6,  4,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   2,  4,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2, $A,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2
-		dc.b   4,  4,  2,  2,  4,  2,  2,  4,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  4,  2,  4,  2,  2,  4,  2,  2,  2,  4,  2,  4
-		dc.b   2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  6,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, $E,  0,  6,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4
-		dc.b   2,  4,  2,  4,  4,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   4,  2,  2,  2,  2,  2,  6,  6, $E,  0,  0,  0, $E,  0,  0,  0,  0,  0,  8,  8,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   2,  4,  4,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  6
-		dc.b   8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  6,  6,  6,  0,  0,  0,  0,  0, $E,  0,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2
-		dc.b   2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  2,  4,  2,  2,  2, $A,  2, $A,  2,  2,  4,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  6,  8
-		dc.b   8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  4,  6,  4,  8,  8,  6,  6,  6,  8,  6,  6,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2
-		dc.b   2,  2,  4,  4,  2,  2,  2,  2,  4,  4,  2,  2,  4,  4,  2,  4,  4,  4,  4,  2,  2,  4,  2,  2,  2, $A,  4,  2,  2,  6,  8,  8
-		dc.b   8,  8,  8,  8,  8,  8,  8,  6,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  6,  6,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  4,  4,  2,  4
-		dc.b   2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2, $A,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   4,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  6,  8,  8,  8
-		dc.b   8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2, $A,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  6,  8,  8,  8,  8
-		dc.b   8,  8,  8,  8,  8,  6,  2,  4,  4, $A,  2,  2,  2,  2, $A,  2,  2,  2,  2,  2,  2,  4,  4,  2,  4,  2,  2,  2,  2,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2,  4,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8
-		dc.b   8,  8,  8,  8,  6,  2,  2,  4,  2,  4,  2,  4,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, $A,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  6,  8,  8,  8,  8,  8,  8
-		dc.b   8,  8,  8,  6,  2,  4,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2,  4,  4,  4
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2, $A,  4,  2, $A,  4,  4,  2,  2, $A,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8
-		dc.b   8,  8,  6,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  6,  8,  8,  8,  8,  8,  8,  8,  8
-		dc.b   8,  6,  4,  2,  2, $A,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  4,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8
-		dc.b   6,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  4,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4
-		dc.b   2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  4,  4,  4,  2,  2,  4,  2,  4,  2,  2,  2
-		dc.b   4,  2,  2,  2, $A,  4,  2,  2,  2,  2,  2,  2,  4,  4,  4,  2,  4,  2,  2,  4,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4
-		dc.b   2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2
-		dc.b   2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  4,  4,  4,  2,  4,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   2,  2,  4,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2
-		dc.b   2,  2,  4,  2,  2,  4, $A,  2,  2,  2,  2,  2,  4,  2,  4,  4,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2
-		dc.b   2,  4,  4,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  4
-		dc.b   2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2, $A,  2,  4,  4,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  4,  4,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2, $A,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  4,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  4
-		dc.b   2,  2,  4,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2
-		dc.b   4,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  4,  2,  2,  4,  2
-		dc.b   2,  4,  2,  2,  4,  4,  4,  4, $A,  2,  4,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  4,  4
-		dc.b   2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  4,  4,  4,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2
-		dc.b   2,  4,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, $A,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  2,  4,  4,  2,  2,  2,  4,  4,  2,  2,  4,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2, $A,  2,  2,  4,  2,  4,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  4,  2,  4,  4,  2
-		dc.b   2,  2,  4,  2,  2, $E,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2, $E, $C, $E,  2,  2,  4,  2,  4,  2,  4,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  4,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  4,  2,  2,  2,  4,  2
-		dc.b   2,  4,  4, $E, $C, $C, $C, $E,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  4,  2,  4,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  4,  2,  2,  2,  2,  4,  2
-		dc.b   2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4
-		dc.b   2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  4,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   4,  2, $E, $C, $C, $C, $C, $C, $E,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  4,  2,  2,  4,  4,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  4,  2,  4,  4,  2,  2,  2,  2,  2,  2
-		dc.b   2, $E, $C, $C, $C, $C, $C, $C, $C, $E,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  2,  4,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2
-		dc.b   4,  4,  2,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b  $E, $C, $C, $C, $C, $C, $C, $C, $C, $C, $E,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   4,  4,  4,  2,  2,  2,  2,  4,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2, $E
-		dc.b  $C, $C, $C, $C, $C, $C, $C, $C, $C, $C, $A,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2, $A,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  4,  4,  4,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  2,  2,  2,  2,  4,  2,  4,  2,  4,  2,  2,  2, $A
-		dc.b  $C, $C, $C, $C, $C, $C, $C, $C, $C, $A, $A,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  4,  2,  4,  2,  2,  4,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  2,  2,  4,  2,  4,  2,  2,  2,  2,  4,  4,  2,  2, $A
-		dc.b  $A, $C, $C, $C, $C, $C, $C, $C, $A, $A, $A,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   4,  2,  2,  4,  2,  2,  2,  4,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  4,  4,  2
-		dc.b   4,  4,  4,  2,  2,  2, $A,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2, $A,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2, $A,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  4, $A
-		dc.b  $A, $A, $C, $C, $C, $C, $C, $A, $A, $A, $A,  2,  2,  2,  2,  2, $A,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  4,  2,  2,  2,  4,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  4,  2,  2,  2, $A
-		dc.b  $A, $A, $A, $C, $C, $C, $A, $A, $A, $A,  2,  4,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  4,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  2,  4,  2,  2,  2,  4,  4,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2
-		dc.b  $A, $A, $A, $A, $C, $A, $A, $A, $A,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  4,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2, $A, $A, $A, $A, $A, $A, $A,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4
-		dc.b   2,  2, $A, $A, $A, $A, $A,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4, $C,  2,  2,  4,  2,  2,  2,  2
-		dc.b   2,  2,  2, $A, $A, $A,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  4,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2, $A,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  6
-		dc.b   8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4, $C, $C, $C,  4,  2,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2, $C,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4
-		dc.b   2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  6,  8
-		dc.b   8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  4,  2,  4,  4,  4,  2,  2,  2,  2, $C, $C, $A, $C, $C,  4,  2,  2,  4,  2
-		dc.b   4,  4,  2,  2,  2,  2,  2,  4,  4,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   4,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  6,  8,  8
-		dc.b   8,  8,  8,  8,  8,  8,  8,  6,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, $C, $C, $A, $E, $E, $C, $C,  2,  2,  2,  2
-		dc.b   2,  2,  4,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  6,  8,  8,  8
-		dc.b   8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4, $C, $C, $A, $E, $E, $E, $E, $C, $C,  4,  4,  2
-		dc.b   4,  4,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  4,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  4,  4,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, $A,  4,  6,  8,  8,  8,  8
-		dc.b   8,  8,  8,  8,  8,  6, $A,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2, $C, $C, $A, $E, $E, $E, $E, $E, $E, $C, $C,  2,  2
-		dc.b   2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  4,  4,  2,  2,  4,  4,  4,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  2,  4,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  6,  8,  8,  8,  8,  8
-		dc.b   8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2, $C, $C, $A, $E, $E, $E, $E, $E, $E, $E, $E, $C, $C,  2
-		dc.b   2,  4,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8
-		dc.b   8,  8,  8,  6,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2, $C, $C, $A, $E, $E, $E, $E, $C, $E, $E, $E, $E, $E, $C, $C
-		dc.b   2,  2,  2,  2,  4,  2,  4,  4,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  4,  2
-		dc.b   2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  6,  8,  8,  8,  8,  8,  8,  8
-		dc.b   8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2, $C, $C, $A, $E, $E, $E, $E, $C, $C, $C, $E, $E, $E, $E, $E, $C
-		dc.b  $C,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4, $A,  4,  4,  2,  4
-		dc.b   4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8
-		dc.b   8,  6,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2, $C, $C, $A, $E, $E, $E, $E, $C, $C, $E, $C, $C, $E, $E, $E, $E, $E
-		dc.b  $C, $C,  4,  4,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4, $A
-		dc.b   2,  2,  2,  4,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8
-		dc.b   6,  2,  2,  2,  4,  4,  4,  2,  2,  2,  2,  2,  2,  2, $C, $C, $A, $E, $E, $E, $E, $C, $C, $E, $E, $E, $C, $C, $E, $E, $E, $E
-		dc.b  $E, $C, $C,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  4,  2, $A,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  4,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6
-		dc.b   2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, $C, $C, $A, $E, $E, $E, $E, $C, $C, $E, $E, $E, $E, $E, $C, $C, $E, $E, $E
-		dc.b  $E, $E, $C, $C,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   4,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2
-		dc.b   2,  2,  4,  4,  2,  2,  2,  2,  2,  4,  2,  2, $C, $C, $A, $E, $E, $E, $E, $C, $C, $E, $E, $E, $E, $E, $E, $E, $C, $C, $E, $E
-		dc.b  $E, $E, $E, $C, $C,  2,  4,  2,  4,  2,  4,  2,  4,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2
-		dc.b   2,  2,  4,  2,  2,  4,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, $C, $C, $A, $E, $E, $E, $E, $C, $C, $E, $E, $E, $E, $E, $E, $E, $E, $E, $C, $C, $E
-		dc.b  $E, $E, $E, $E, $C, $C,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2
-		dc.b   2,  4,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  4, $C, $C, $A, $E, $E, $E, $E, $C, $C, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $C, $C
-		dc.b  $E, $E, $E, $E, $E, $C, $C,  4,  2,  2,  2,  2,  4,  4,  2,  4,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2, $A,  2,  2,  2,  2
-		dc.b   2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  2,  2,  2,  2,  2, $C, $C, $A, $E, $E, $E, $E, $C, $C, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $C
-		dc.b  $C, $E, $E, $E, $E, $E, $C, $C,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  4,  4,  2,  2,  2,  2,  4,  2,  4,  2,  2,  6,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  4,  2,  2,  2
-		dc.b   2,  2,  4,  4,  2,  4,  2,  4, $C, $C, $A, $E, $E, $E, $E, $C, $C, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E
-		dc.b  $C, $C, $E, $E, $E, $E, $E, $C, $C,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  2,  4,  4,  4,  4,  2,  2,  4
-		dc.b   2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  6,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2,  4,  2,  2,  4,  4,  2,  2, $C, $C, $E, $E, $E, $E, $E, $C, $C, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $C
-		dc.b  $C, $A, $E, $E, $E, $E, $C, $C,  4,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2, $A,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  6,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  2, $C, $C, $E, $E, $E, $E, $E, $C, $C, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $E, $C, $C
-		dc.b  $A, $E, $E, $E, $E, $C, $C,  2,  4,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  6,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, $C, $C, $E, $E, $E, $E, $E, $C, $C, $E, $E, $E, $E, $E, $E, $E, $E, $E, $C, $C, $A
-		dc.b  $E, $E, $E, $E, $C, $C,  2,  4,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  4,  4,  2,  2,  2,  4,  4,  2,  4,  2,  2,  4,  2, $A,  2,  2,  4,  2,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  6,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   4,  4,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2, $C, $C, $E, $E, $E, $E, $E, $C, $C, $E, $E, $E, $E, $E, $E, $E, $C, $C, $A, $E
-		dc.b  $E, $E, $E, $C, $C,  2,  2,  4,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2
-		dc.b   2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2, $A,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2
-		dc.b   4,  2,  2,  4,  2,  2,  2,  2,  4,  2, $A,  2,  2, $C, $C, $E, $E, $E, $E, $E, $C, $C, $E, $E, $E, $E, $E, $C, $C, $A, $E, $E
-		dc.b  $E, $E, $C, $C,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  4,  4,  2,  4,  4,  2,  2,  4,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2
-		dc.b   2,  4,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2, $C, $C, $E, $E, $E, $E, $E, $C, $C, $E, $E, $E, $C, $C, $A, $E, $E, $E
-		dc.b  $E, $C, $C,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  4,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  4,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  4,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2, $C, $C, $E, $E, $E, $E, $E, $C, $C, $E, $C, $C, $A, $E, $E, $E, $E
-		dc.b  $C, $C,  2,  2,  4,  2,  2,  2,  2,  2,  2, $A,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  4,  4,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  2,  4,  4,  2,  2,  2,  2,  4,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2, $A,  2,  2,  2,  2,  2,  2,  2,  2,  4, $C, $C, $E, $E, $E, $E, $E, $C, $C, $C, $A, $E, $E, $E, $E, $C
-		dc.b  $C,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2
-		dc.b   2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  4,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  2,  8,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4, $A,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, $C, $C, $E, $E, $E, $E, $E, $C, $A, $E, $E, $E, $E, $C, $C
-		dc.b   2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2
-		dc.b   4,  4,  2,  2,  2,  4,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2
-		dc.b   4,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2, $C, $C, $E, $E, $E, $E, $E, $E, $E, $E, $E, $C, $C,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4, $A,  4,  2,  2,  2,  2,  2,  4,  2,  2, $A,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  4
-		dc.b   2,  2,  2,  2,  4,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2, $C, $C, $E, $E, $E, $E, $E, $E, $E, $C, $C,  2,  2
-		dc.b   4,  4,  2,  2,  4,  2,  4,  4,  4,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4
-		dc.b   2,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4, $C, $C, $E, $E, $E, $E, $E, $C, $C,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2, $A,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2
-		dc.b   2,  2,  4,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  4,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2, $C, $C, $E, $E, $E, $C, $C,  2,  4,  2,  2
-		dc.b   2,  2,  2,  4,  4,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2, $A,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2
-		dc.b   2,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  4,  4,  2,  4,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  4,  2,  2,  4,  2,  2, $C, $C, $E, $C, $C,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  2
-		dc.b   2,  2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  6,  6,  4,  2,  2,  4,  2,  2,  2,  2,  2,  4,  4,  2,  4,  2,  4,  2,  4,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4, $C, $C, $C,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  4,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  6,  8,  8,  8,  8,  8,  8,  8,  8,  6,  4,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, $C,  4,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   6,  8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2
-		dc.b   2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  4,  4,  4,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2, $A,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  6
-		dc.b   8,  8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2
-		dc.b   4,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   4,  2, $A,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  2,  4,  4,  4,  2,  4,  2,  4,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  6,  8
-		dc.b   8,  8,  8,  8,  8,  8,  8,  8,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  2,  2,  2,  4,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  6,  8,  8
-		dc.b   8,  8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  4,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  4,  2,  2,  2,  2,  4,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  6,  8,  8,  8
-		dc.b   8,  8,  8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2
-		dc.b   2,  2,  4,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  4
-		dc.b   2,  2,  4,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2, $A,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  6,  8,  8,  8,  8
-		dc.b   8,  8,  8,  8,  8,  6,  2,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  4,  2,  4,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  4,  2,  4,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2, $A,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  2,  4,  2,  2,  2,  2,  6,  8,  8,  8,  8,  8
-		dc.b   8,  8,  8,  8,  6,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2,  4,  2,  4,  2,  2,  4,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  4,  4,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  4,  4,  2,  4,  2,  2,  2,  2
-		dc.b   2,  4,  2,  4,  2,  2,  2,  2,  4,  2,  4,  4,  2,  2,  4,  2,  4,  2,  2,  2,  2,  4,  2,  2,  2,  6,  8,  8,  8,  8,  8,  8
-		dc.b   8,  8,  8,  6,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  4,  4,  2,  2,  2,  4,  4,  2,  2,  2,  2,  2,  4,  2,  2,  2,  4
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2, $A,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  4,  2,  2,  2
-		dc.b   2,  2,  4,  2,  4,  2,  2,  2,  2,  4,  2, $A,  4,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  2,  2,  2,  2,  2,  2
-		dc.b   2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  4,  2,  2,  6,  8,  8,  8,  8,  8,  8,  8
-		dc.b   8,  8,  6,  2,  2,  2,  4,  2
+; include "_inc/UnusedArt.asm"; useless, maybe was for padding at one point
 AngleMap_GHZ:	dc.b $FF,  0,$88,$90,$A0,$B0,$B8,$C4,  0,  0,  0,  0,$D0,  0,  0,  0; 0
 					; DATA XREF: ROM:00013058o
 		dc.b $FC,$FC,$FC,$FC,$FC,$FC,$FC,$FC,$F8,$F8,$F8,$F8,$F0,$F0,$D0,$D0; 16
@@ -38551,6 +36268,7 @@ Art_UnkZone_8:	dc.l  $6600666,	$7777777, $8888888,	   0, $6600666,	$7777777, $88
 		dc.l	     0,	$6600666, $7777777, $8888888,	     0,	$6600666, $7777777, $8888888; 8
 		dc.l  $8888888,	       0, $6600666, $7777777, $8888888,	       0, $6600666, $7777777; 16
 		dc.l  $7777777,	$8888888,	 0, $6600666, $7777777,	$8888888,	 0, $6600666; 24
+		even
 Level_WZ1:	incbin	"level/layout/WZ_1.bin"
 Level_WZBG:	incbin	"level/layout/WZ_BG.bin"
 Level_CNZ2:	incbin	"level/layout/CNZ_2.bin"
@@ -39177,10 +36895,12 @@ Leftover_Art_Alphabet:dc.b   0,	 0,  0,	 0,  0,	 0,  0,	 0,  0,	 0,  0,	 0,  0,	
 
 Leftover_31000:
 		incbin	"misc/leftovers/31000.bin"
+ even
 ObjPos_SSZ1:
 		incbin	"level/objects/SSZ_1.bin"
 ObjPos_SSZ2:
 		incbin	"level/objects/SSZ_2.bin"
+		even
 ; --------------------------------------------------------------------------------------
 ; Object layouts
 ; --------------------------------------------------------------------------------------
@@ -39214,7 +36934,7 @@ ObjPos_Index:	dc.w ObjPos_GHZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_HTZ3-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_HTZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index
 
-		dc.w ObjPos_WZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index	;wood zone act 1
+		dc.w ObjPos_Null-ObjPos_Index,ObjPos_Null-ObjPos_Index	;wood zone act 1
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
@@ -39243,6 +36963,7 @@ ObjPos_Index:	dc.w ObjPos_GHZ1-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_SSZ2-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
 		dc.w ObjPos_S1Ending-ObjPos_Index,ObjPos_Null-ObjPos_Index
+		even
 		; platform objects in LZ/SBZ (unused)
 ;		dc.w ObjPos_S1LZ1pf1-ObjPos_Index,ObjPos_S1LZ1pf2-ObjPos_Index
 ;		dc.w ObjPos_S1LZ2pf1-ObjPos_Index,ObjPos_S1LZ2pf2-ObjPos_Index
@@ -39297,119 +37018,120 @@ ObjPos_HTZ1:	incbin	"level/objects/HTZ_1.bin"
 ObjPos_HTZ2:	dc.w $FFFF,    0,    0
 ObjPos_HTZ3:	incbin	"level/objects/HTZ_3.bin"
 		dc.w $FFFF,    0,    0
-ObjPos_S1SBZ1pf1:dc.w 7			; DATA XREF: ROM:ObjPos_Indexo
-		dc.w  $E14, $370,    0	; 0
-		dc.w  $E5A, $34D,    1	; 3
-		dc.w  $EA0, $32A,    1	; 6
-		dc.w  $EE7, $307,    1	; 9
-		dc.w  $EEF, $340,    2	; 12
-		dc.w  $EA9, $363,    3	; 15
-		dc.w  $E63, $386,    3	; 18
-		dc.w  $E1C, $3A9,    3	; 21
-ObjPos_S1SBZ1pf2:dc.w 7			; DATA XREF: ROM:ObjPos_Indexo
-		dc.w  $F14, $2E0,  $10	; 0
-		dc.w  $F5A, $2BD,  $11	; 3
-		dc.w  $FA0, $29A,  $11	; 6
-		dc.w  $FE7, $277,  $11	; 9
-		dc.w  $FEF, $2B0,  $12	; 12
-		dc.w  $FA9, $2D3,  $13	; 15
-		dc.w  $F63, $2F6,  $13	; 18
-		dc.w  $F1C, $319,  $13	; 21
-ObjPos_S1SBZ1pf3:dc.w 7			; DATA XREF: ROM:ObjPos_Indexo
-		dc.w $1014, $270,  $20	; 0
-		dc.w $105A, $24D,  $21	; 3
-		dc.w $10A0, $22A,  $21	; 6
-		dc.w $10E7, $207,  $21	; 9
-		dc.w $10EF, $240,  $22	; 12
-		dc.w $10A9, $263,  $23	; 15
-		dc.w $1063, $286,  $23	; 18
-		dc.w $101C, $2A9,  $23	; 21
-ObjPos_S1SBZ1pf4:dc.w 7			; DATA XREF: ROM:ObjPos_Indexo
-		dc.w  $F14, $570,  $30	; 0
-		dc.w  $F5A, $54D,  $31	; 3
-		dc.w  $FA0, $52A,  $31	; 6
-		dc.w  $FE7, $507,  $31	; 9
-		dc.w  $FEF, $540,  $32	; 12
-		dc.w  $FA9, $563,  $33	; 15
-		dc.w  $F63, $586,  $33	; 18
-		dc.w  $F1C, $5A9,  $33	; 21
-ObjPos_S1SBZ1pf5:dc.w 7			; DATA XREF: ROM:ObjPos_Indexo
-		dc.w $1B14, $670,  $40	; 0
-		dc.w $1B5A, $64D,  $41	; 3
-		dc.w $1BA0, $62A,  $41	; 6
-		dc.w $1BE7, $607,  $41	; 9
-		dc.w $1BEF, $640,  $42	; 12
-		dc.w $1BA9, $663,  $43	; 15
-		dc.w $1B63, $686,  $43	; 18
-		dc.w $1B1C, $6A9,  $43	; 21
-ObjPos_S1SBZ1pf6:dc.w	  7,$1C14, $5E0	 ; 0 ; DATA XREF: ROM:ObjPos_Indexo
-		dc.w   $50,$1C5A, $5BD	; 3
-		dc.w   $51,$1CA0, $59A	; 6
-		dc.w   $51,$1CE7, $577	; 9
-		dc.w   $51,$1CEF, $5B0	; 12
-		dc.w   $52,$1CA9, $5D3	; 15
-		dc.w   $53,$1C63, $5F6	; 18
-		dc.w   $53,$1C1C, $619	; 21
-		dc.w   $53,$FFFF,    0	; 24
-		dc.w	 0		; 27
-ObjPos_S1Ending:dc.w   $10, $170,$280C	; 0 ; DATA XREF: ROM:ObjPos_Indexo
-		dc.w   $14, $1B2,$2812	; 3
-		dc.w   $28, $1B0,$280C	; 6
-		dc.w   $30, $1B2,$2812	; 9
-		dc.w   $40, $170,$280F	; 12
-		dc.w   $5B, $1B1,$2811	; 15
-		dc.w   $64, $1B1,$2811	; 18
-		dc.w   $68, $1B1,$280C	; 21
-		dc.w   $D8, $1B0,$2813	; 24
-		dc.w   $E4, $1B1,$280C	; 27
-		dc.w   $E8, $1B0,$280F	; 30
-		dc.w   $F4, $1B0,$2810	; 33
-		dc.w   $F8, $1AF,$2814	; 36
-		dc.w  $108, $1B0,$280E	; 39
-		dc.w  $108, $1B4,$2813	; 42
-		dc.w  $110, $173,$280C	; 45
-		dc.w  $114, $1B0,$2810	; 48
-		dc.w  $128, $174,$280E	; 51
-		dc.w  $128, $1B0,$2814	; 54
-		dc.w  $128, $1B2,$2813	; 57
-		dc.w  $130, $1B8,$280C	; 60
-		dc.w  $210, $1B0,$280A	; 63
-		dc.w  $230, $1B2,$2813	; 66
-		dc.w  $260, $1B0,$280D	; 69
-		dc.w  $290, $1B6,$2813	; 72
-		dc.w  $2B0, $150,$280A	; 75
-		dc.w  $2B0, $180,$280A	; 78
-		dc.w  $2B0, $1B0,$280A	; 81
-		dc.w  $2F0, $1B2,$2813	; 84
-		dc.w  $300, $1B0,$280A	; 87
-		dc.w  $384, $1B0,$280D	; 90
-		dc.w  $434, $1B8,$280D	; 93
-		dc.w  $478, $1A4,$2813	; 96
-		dc.w  $4D8, $176,$2813	; 99
-		dc.w  $4F8, $170,$280A	; 102
-		dc.w  $530, $170,$2810	; 105
-		dc.w  $560, $170,$2810	; 108
-		dc.w  $590, $170,$2810	; 111
-		dc.w  $5C0, $170,$2810	; 114
-		dc.w  $5D8, $170,$2810	; 117
-		dc.w  $624, $170,$280A	; 120
-		dc.w  $6C4, $1A4,$280D	; 123
-		dc.w  $734, $1B8,$280A	; 126
-		dc.w  $7F8, $174,$280A	; 129
-		dc.w  $878, $178,$280D	; 132
-		dc.w  $9B8, $158,$280A	; 135
-		dc.w  $A00, $1B4,$280D	; 138
-		dc.w  $A48, $152,$2812	; 141
-		dc.w  $A78, $152,$2812	; 144
-		dc.w  $AA8, $152,$2812	; 147
-		dc.w  $AD4, $154,$2814	; 150
-		dc.w  $B34, $138,$280A	; 153
-		dc.w  $BF8, $174,$280A	; 156
-		dc.w  $CC4, $1AB,$280D	; 159
-		dc.w  $CC8, $148,$280A	; 162
-		dc.w  $D34, $1BA,$280D	; 165
-		dc.w  $DF8, $174,$280A	; 168
-		dc.w $FFFF,    0,    0
+		even
+;ObjPos_S1SBZ1pf1:dc.w 7			; DATA XREF: ROM:ObjPos_Indexo
+;		dc.w  $E14, $370,    0	; 0
+;		dc.w  $E5A, $34D,    1	; 3
+;		dc.w  $EA0, $32A,    1	; 6
+;		dc.w  $EE7, $307,    1	; 9
+;		dc.w  $EEF, $340,    2	; 12
+;		dc.w  $EA9, $363,    3	; 15
+;		dc.w  $E63, $386,    3	; 18
+;		dc.w  $E1C, $3A9,    3	; 21
+;ObjPos_S1SBZ1pf2:dc.w 7			; DATA XREF: ROM:ObjPos_Indexo
+;		dc.w  $F14, $2E0,  $10	; 0
+;		dc.w  $F5A, $2BD,  $11	; 3
+;		dc.w  $FA0, $29A,  $11	; 6
+;		dc.w  $FE7, $277,  $11	; 9
+;		dc.w  $FEF, $2B0,  $12	; 12
+;		dc.w  $FA9, $2D3,  $13	; 15
+;		dc.w  $F63, $2F6,  $13	; 18
+;		dc.w  $F1C, $319,  $13	; 21
+;ObjPos_S1SBZ1pf3:dc.w 7			; DATA XREF: ROM:ObjPos_Indexo
+;		dc.w $1014, $270,  $20	; 0
+;		dc.w $105A, $24D,  $21	; 3
+;		dc.w $10A0, $22A,  $21	; 6
+;		dc.w $10E7, $207,  $21	; 9
+;		dc.w $10EF, $240,  $22	; 12
+;		dc.w $10A9, $263,  $23	; 15
+;		dc.w $1063, $286,  $23	; 18
+;		dc.w $101C, $2A9,  $23	; 21
+;ObjPos_S1SBZ1pf4:dc.w 7			; DATA XREF: ROM:ObjPos_Indexo
+;		dc.w  $F14, $570,  $30	; 0
+;		dc.w  $F5A, $54D,  $31	; 3
+;		dc.w  $FA0, $52A,  $31	; 6
+;		dc.w  $FE7, $507,  $31	; 9
+;		dc.w  $FEF, $540,  $32	; 12
+;		dc.w  $FA9, $563,  $33	; 15
+;		dc.w  $F63, $586,  $33	; 18
+;		dc.w  $F1C, $5A9,  $33	; 21
+;ObjPos_S1SBZ1pf5:dc.w 7			; DATA XREF: ROM:ObjPos_Indexo;
+;		dc.w $1B14, $670,  $40	; 0
+;		dc.w $1B5A, $64D,  $41	; 3
+;		dc.w $1BA0, $62A,  $41	; 6
+;		dc.w $1BE7, $607,  $41	; 9
+;		dc.w $1BEF, $640,  $42	; 12
+;		dc.w $1BA9, $663,  $43	; 15
+;		dc.w $1B63, $686,  $43	; 18
+;		dc.w $1B1C, $6A9,  $43	; 21
+;ObjPos_S1SBZ1pf6:dc.w	  7,$1C14, $5E0	 ; 0 ; DATA XREF: ROM:ObjPos_Indexo
+;		dc.w   $50,$1C5A, $5BD	; 3
+;		dc.w   $51,$1CA0, $59A	; 6
+;		dc.w   $51,$1CE7, $577	; 9
+;		dc.w   $51,$1CEF, $5B0	; 12
+;		dc.w   $52,$1CA9, $5D3	; 15
+;		dc.w   $53,$1C63, $5F6	; 18
+;		dc.w   $53,$1C1C, $619	; 21
+;		dc.w   $53,$FFFF,    0	; 24
+	;	dc.w	 0		; 27
+ObjPos_S1Ending:;dc.w   $10, $170,$280C	; 0 ; DATA XREF: ROM:ObjPos_Indexo
+;		dc.w   $14, $1B2,$2812	; 3
+;		dc.w   $28, $1B0,$280C	; 6
+;		dc.w   $30, $1B2,$2812	; 9
+;		dc.w   $40, $170,$280F	; 12
+;		dc.w   $5B, $1B1,$2811	; 15
+;		dc.w   $64, $1B1,$2811	; 18
+;		dc.w   $68, $1B1,$280C	; 21
+;		dc.w   $D8, $1B0,$2813	; 24
+;		dc.w   $E4, $1B1,$280C	; 27
+;		dc.w   $E8, $1B0,$280F	; 30
+;		dc.w   $F4, $1B0,$2810	; 33
+;		dc.w   $F8, $1AF,$2814	; 36
+;		dc.w  $108, $1B0,$280E	; 39
+;		dc.w  $108, $1B4,$2813	; 42
+;		dc.w  $110, $173,$280C	; 45
+;		dc.w  $114, $1B0,$2810	; 48
+;		dc.w  $128, $174,$280E	; 51
+;		dc.w  $128, $1B0,$2814	; 54
+;		dc.w  $128, $1B2,$2813	; 57
+;		dc.w  $130, $1B8,$280C	; 60
+;		dc.w  $210, $1B0,$280A	; 63
+;		dc.w  $230, $1B2,$2813	; 66
+;		dc.w  $260, $1B0,$280D	; 69
+;		dc.w  $290, $1B6,$2813	; 72
+;		dc.w  $2B0, $150,$280A	; 75
+;		dc.w  $2B0, $180,$280A	; 78
+;		dc.w  $2B0, $1B0,$280A	; 81
+;		dc.w  $2F0, $1B2,$2813	; 84
+;		dc.w  $300, $1B0,$280A	; 87
+;		dc.w  $384, $1B0,$280D	; 90
+;		dc.w  $434, $1B8,$280D	; 93
+;		dc.w  $478, $1A4,$2813	; 96
+;		dc.w  $4D8, $176,$2813	; 99
+;		dc.w  $4F8, $170,$280A	; 102
+;		dc.w  $530, $170,$2810	; 105
+;		dc.w  $560, $170,$2810	; 108
+;		dc.w  $590, $170,$2810	; 111
+;		dc.w  $5C0, $170,$2810	; 114
+;		dc.w  $5D8, $170,$2810	; 117
+;		dc.w  $624, $170,$280A	; 120
+;		dc.w  $6C4, $1A4,$280D	; 123
+;		dc.w  $734, $1B8,$280A	; 126
+;		dc.w  $7F8, $174,$280A	; 129
+;		dc.w  $878, $178,$280D	; 132
+;		dc.w  $9B8, $158,$280A	; 135
+;		dc.w  $A00, $1B4,$280D	; 138
+;		dc.w  $A48, $152,$2812	; 141
+;		dc.w  $A78, $152,$2812	; 144
+;		dc.w  $AA8, $152,$2812	; 147
+	;	dc.w  $AD4, $154,$2814	; 150
+;;		dc.w  $B34, $138,$280A	; 153
+;		dc.w  $BF8, $174,$280A	; 156
+;		dc.w  $CC4, $1AB,$280D	; 159
+;		dc.w  $CC8, $148,$280A	; 162
+;		dc.w  $D34, $1BA,$280D	; 165
+;		dc.w  $DF8, $174,$280A	; 168
+;		dc.w $FFFF,    0,    0
 ObjPos_Null:	dc.w $FFFF,    0,    0
 ; ---------------------------------------------------------------------------
 ; Leftover symbol tables due to compiler weirdness; these are formatted
@@ -39426,52 +37148,62 @@ Leftover_418A8:	incbin	"misc/leftovers/418A8.bin"
 ; ---------------------------------------------------------------------------
 ; Ring layouts; one entry per act, four entries per zone
 ; ---------------------------------------------------------------------------
-RingPos_Index:	dc.w RingPos_GHZ1-RingPos_Index
+RingPos_Index:	dc.w RingPos_GHZ1-RingPos_Index;0
 		dc.w RingPos_GHZ2-RingPos_Index
 		dc.w RingPos_GHZ3-RingPos_Index
 		dc.w RingPos_GHZ1-RingPos_Index
 
-		dc.w RingPos_LZ1-RingPos_Index
+		dc.w RingPos_LZ1-RingPos_Index;1
 		dc.w RingPos_LZ2-RingPos_Index
 		dc.w RingPos_LZ3-RingPos_Index
 		dc.w RingPos_LZ1-RingPos_Index
 
-		dc.w RingPos_CPZ1-RingPos_Index
+		dc.w RingPos_CPZ1-RingPos_Index;2
 		dc.w RingPos_GHZ2-RingPos_Index
 		dc.w RingPos_GHZ3-RingPos_Index
 		dc.w RingPos_GHZ1-RingPos_Index
 
-		dc.w RingPos_EHZ1-RingPos_Index
+		dc.w RingPos_EHZ1-RingPos_Index;3
 		dc.w RingPos_EHZ2-RingPos_Index
 		dc.w RingPos_HTZ1-RingPos_Index
 		dc.w RingPos_HTZ2-RingPos_Index
 
-		dc.w RingPos_HPZ1-RingPos_Index
+		dc.w RingPos_HPZ1-RingPos_Index;4
 		dc.w RingPos_GHZ2-RingPos_Index
 		dc.w RingPos_GHZ3-RingPos_Index
 		dc.w RingPos_GHZ1-RingPos_Index
 
-		dc.w RingPos_HTZ1-RingPos_Index
+		dc.w RingPos_HTZ1-RingPos_Index;5
 		dc.w RingPos_HTZ2-RingPos_Index
 		dc.w RingPos_LZ3-RingPos_Index
 		dc.w RingPos_LZ1-RingPos_Index
 		
-		dc.w RingPos_HTZ1-RingPos_Index
+		dc.w RingPos_HTZ1-RingPos_Index;6
 		dc.w RingPos_HTZ2-RingPos_Index
 		dc.w RingPos_LZ3-RingPos_Index
 		dc.w RingPos_LZ1-RingPos_Index
 		
-		dc.w RingPos_HTZ1-RingPos_Index
+		dc.w RingPos_HTZ1-RingPos_Index;7
 		dc.w RingPos_HTZ2-RingPos_Index
 		dc.w RingPos_LZ3-RingPos_Index
 		dc.w RingPos_LZ1-RingPos_Index
 
-		dc.w RingPos_HTZ1-RingPos_Index
+		dc.w RingPos_HTZ1-RingPos_Index;8
 		dc.w RingPos_HTZ2-RingPos_Index
 		dc.w RingPos_LZ3-RingPos_Index
 		dc.w RingPos_LZ1-RingPos_Index
 		
-		dc.w RingPos_HTZ1-RingPos_Index
+		dc.w RingPos_HTZ1-RingPos_Index;9
+		dc.w RingPos_HTZ2-RingPos_Index
+		dc.w RingPos_LZ3-RingPos_Index
+		dc.w RingPos_LZ1-RingPos_Index
+
+		dc.w RingPos_HTZ1-RingPos_Index;$A
+		dc.w RingPos_HTZ2-RingPos_Index
+		dc.w RingPos_LZ3-RingPos_Index
+		dc.w RingPos_LZ1-RingPos_Index
+
+		dc.w RingPos_HTZ1-RingPos_Index;$B
 		dc.w RingPos_HTZ2-RingPos_Index
 		dc.w RingPos_LZ3-RingPos_Index
 		dc.w RingPos_LZ1-RingPos_Index
